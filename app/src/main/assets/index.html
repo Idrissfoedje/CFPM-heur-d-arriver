@@ -168,11 +168,22 @@ ul.list{list-style:none;margin:0;padding:0}
 .nm{font-weight:600;word-break:break-word}
 .tm{font-family:var(--head);font-weight:700;font-size:1.3rem;text-align:right;line-height:1.1}
 .tag{display:block;font-family:var(--body);font-size:.75rem;font-weight:600;color:var(--green)}
-.row.late .tag{color:var(--red)}
-.sum{display:flex;gap:8px;margin:12px 0}
-.sum div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
-.sum b{font-family:var(--head);font-size:1.8rem;display:block;line-height:1}
-.sum .l b{color:var(--red)} .sum .o b{color:var(--green)}
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
+.sum div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:transform .1s,box-shadow .1s}
+.sum div:active{transform:scale(0.97)}
+.sum b{font-family:var(--head);font-size:1.55rem;display:block;line-height:1}
+.sum .l b{color:var(--red)} .sum .o b{color:var(--green)} .sum .a b{color:var(--red)}
+.sum .a{border-left:3px solid var(--red)}
+
+.filter-tabs{display:flex;gap:8px;margin:10px 0 12px}
+.ftab{flex:1;border:2px solid var(--line);background:var(--card);color:var(--muted);padding:9px 8px;border-radius:8px;font-family:var(--head);font-weight:700;font-size:.95rem;cursor:pointer;text-align:center;transition:all .2s}
+.ftab.on{background:var(--green);color:#fff;border-color:var(--green)}
+.ftab.on.ftab-abs{background:var(--red);border-color:var(--red)}
+
+.row.row-absent{border-left-color:var(--red);background:#fff9f9}
+.rk-absent{font-family:var(--head);font-weight:700;font-size:1.4rem;text-align:center;color:var(--red)}
+.tag.tag-absent{color:var(--muted);font-size:.75rem}
+.flag.flag-absent{background:var(--red);color:#fff;border-radius:6px;padding:3px 8px;font-size:.8rem;font-weight:700;display:inline-block}
 
 table{width:100%;border-collapse:collapse;font-size:.92rem}
 th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
@@ -249,16 +260,21 @@ body.inapp #selfiefile{display:none!important}
     <div id="p4" class="hidden"></div>
   </section>
 
-  <!-- ===== CLASSEMENT ===== -->
+  <!-- ===== CLASSEMENT & ABSENCES ===== -->
   <section id="v-rank" class="hidden">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-      <h2>Classement du jour</h2>
+      <h2>Pointages et Absences</h2>
       <button id="btnref" class="btn sm alt" style="margin:0; padding:6px 12px; font-size:0.85rem; font-weight:600;">🔄 Actualiser</button>
     </div>
-    <p class="hint" style="margin-bottom:10px">Le premier arrivé est rang 1. Les données sont partagées entre tous les téléphones.</p>
+    <p class="hint" style="margin-bottom:10px">Pointages et absences du jour. Les données sont partagées entre tous les téléphones.</p>
     <input id="rdate" type="date" aria-label="Choisir la date">
     <div class="sum" id="rsum"></div>
+    <div class="filter-tabs">
+      <button id="tab-pres" class="ftab on" type="button">🟢 Présents (<span id="cpres">0</span>)</button>
+      <button id="tab-abs" class="ftab" type="button">🔴 Absents (<span id="cabs">0</span>)</button>
+    </div>
     <ul class="list" id="rlist"></ul>
+    <ul class="list hidden" id="alist"></ul>
   </section>
 
   <!-- ===== DIRECTION ===== -->
@@ -286,11 +302,17 @@ body.inapp #selfiefile{display:none!important}
         <div class="scroll"><table id="tlate"></table></div>
       </div>
       <div class="card">
+        <h3>Bilan des absences sur la période</h3>
+        <p class="hint">Absences constatées pour chaque personne enregistrée.</p>
+        <div class="scroll"><table id="tabsents"></table></div>
+      </div>
+      <div class="card">
         <h3>Classement des plus disciplinés</h3>
         <p class="hint">Moins de retards en proportion, puis heure moyenne d'arrivée la plus tôt.</p>
         <div class="scroll"><table id="tbest"></table></div>
       </div>
-      <button class="btn" id="csv">Exporter en CSV (Excel)</button>
+      <button class="btn" id="csv">Exporter l'historique en CSV (Excel)</button>
+      <button class="btn alt" id="csv-day">Exporter la journée avec absents (CSV)</button>
       <button class="btn alt" id="manage">Corriger ou supprimer un pointage</button>
       <div id="mlist" class="hidden" style="margin-top:12px"></div>
       <button class="btn alt" id="lock">Verrouiller</button>
@@ -730,21 +752,114 @@ async function showResult(rec,already){
   $('#again').onclick=()=>{ $('#name').value=''; S.name='';S.photo=null;S.capTs=null; goStep(1); $('#name').focus(); };
 }
 
-/* ============ Classement du jour ============ */
-$('#rdate').addEventListener('change',()=>renderRank(true));
-if($('#btnref')) $('#btnref').onclick = ()=>renderRank(true);
+/* ============ Classement et Absences ============ */
+let currentRankTab = 'presents';
+
+function setRankTab(tab){
+  currentRankTab = tab;
+  const isP = tab === 'presents';
+  const tp = $('#tab-pres'), ta = $('#tab-abs');
+  const rl = $('#rlist'), al = $('#alist');
+  if(tp) tp.classList.toggle('on', isP);
+  if(ta) {
+    ta.classList.toggle('on', !isP);
+    ta.classList.toggle('ftab-abs', !isP);
+  }
+  if(rl) rl.classList.toggle('hidden', !isP);
+  if(al) al.classList.toggle('hidden', isP);
+}
+
+if($('#tab-pres')) $('#tab-pres').onclick = () => setRankTab('presents');
+if($('#tab-abs')) $('#tab-abs').onclick = () => setRankTab('absents');
+
+$('#rsum').addEventListener('click', e => {
+  const box = e.target.closest('div');
+  if(!box) return;
+  if(box.classList.contains('a') || box.id === 'sum-abs') setRankTab('absents');
+  else setRankTab('presents');
+});
+
+function attachPhotoClick(listEl){
+  if(!listEl) return;
+  listEl.addEventListener('click', e => {
+    const img = e.target.closest('img');
+    if(!img) return;
+    const photo = img.dataset && img.dataset.photo;
+    if(photo && !photo.startsWith('data:image/svg')){
+      $('#dimg').src = photo;
+      $('#dlg').showModal();
+    }
+  });
+}
+attachPhotoClick($('#rlist'));
+attachPhotoClick($('#alist'));
+$('#dclose').onclick = () => $('#dlg').close();
+
+$('#rdate').addEventListener('change', () => renderRank(true));
+if($('#btnref')) $('#btnref').onclick = () => renderRank(true);
 
 async function renderRank(withSync){
-  const date=$('#rdate').value || nowDla().date; $('#rdate').value=date;
+  const date = $('#rdate').value || nowDla().date;
+  $('#rdate').value = date;
   if(withSync){
     await CloudSync.sync(date);
+    if(navigator.onLine) await CloudSync.pullAllFiles();
   }
-  const list=(await DB.all()).filter(r=>r.date===date).sort((a,b)=>a.secs-b.secs);
-  const late=list.filter(r=>r.late).length;
-  const unsynced=list.filter(r=>!r.synced).length;
+  const allRecs = await DB.all();
+  const list = allRecs.filter(r => r.date === date).sort((a,b) => a.secs - b.secs);
+  const late = list.filter(r => r.late).length;
+  const unsynced = list.filter(r => !r.synced).length;
 
-  $('#rsum').innerHTML=`<div><b>${list.length}</b>présents</div><div class="o"><b>${list.length-late}</b>à l'heure</div><div class="l"><b>${late}</b>en retard</div>`;
-  
+  // Cartographie de toutes les personnes déjà enregistrées dans le système
+  const knownMap = new Map();
+  for (const r of allRecs) {
+    const k = key(r.name);
+    if (!knownMap.has(k)) {
+      knownMap.set(k, {
+        key: k,
+        name: r.name,
+        firstDate: r.date,
+        lastDate: r.date,
+        lastTime: r.time,
+        lastSecs: r.secs,
+        lastPhoto: r.photo || ''
+      });
+    } else {
+      const p = knownMap.get(k);
+      if (r.date < p.firstDate) p.firstDate = r.date;
+      if (r.date > p.lastDate || (r.date === p.lastDate && r.secs > p.lastSecs)) {
+        p.lastDate = r.date;
+        p.lastTime = r.time;
+        p.lastSecs = r.secs;
+        p.name = r.name;
+        if (r.photo) p.lastPhoto = r.photo;
+      }
+    }
+  }
+
+  // Présents du jour
+  const presentKeys = new Set(list.map(r => key(r.name)));
+
+  // Absents du jour : personnes inscrites au plus tard à cette date mais non pointées aujourd'hui
+  const absents = [];
+  for (const p of knownMap.values()) {
+    if (p.firstDate <= date && !presentKeys.has(p.key)) {
+      absents.push(p);
+    }
+  }
+  absents.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
+  // Mise à jour des compteurs et onglets
+  const cpres = $('#cpres'), cabs = $('#cabs');
+  if(cpres) cpres.textContent = list.length;
+  if(cabs) cabs.textContent = absents.length;
+
+  $('#rsum').innerHTML = `
+    <div id="sum-pres" title="Voir les présents"><b>${list.length}</b>présents</div>
+    <div class="o" id="sum-ok"><b>${list.length - late}</b>à l'heure</div>
+    <div class="l" id="sum-late"><b>${late}</b>en retard</div>
+    <div class="a" id="sum-abs" title="Voir les absents"><b>${absents.length}</b>absents</div>`;
+
   let banner = '';
   if(unsynced > 0){
     banner = `<div class="card" style="background:#FFF9C4;border:1px solid #FFE082;padding:10px 12px;margin-bottom:12px;font-size:0.88rem;color:#795548;">
@@ -752,20 +867,28 @@ async function renderRank(withSync){
     </div>`;
   }
 
-  $('#rlist').innerHTML = banner + (list.length ? list.map((r,i)=>`
-    <li class="row ${r.late?'late':''}">
-      <span class="rk">${i+1}</span>
-      <img src="${r.photo}" alt="Photo de ${esc(r.name)}" data-id="${esc(r.id)}">
+  // Liste des présents
+  $('#rlist').innerHTML = banner + (list.length ? list.map((r, i) => `
+    <li class="row ${r.late ? 'late' : ''}">
+      <span class="rk">${i + 1}</span>
+      <img src="${r.photo}" alt="Photo de ${esc(r.name)}" data-photo="${esc(r.photo)}">
       <span class="nm">${esc(r.name)} ${r.synced ? '' : '<span style="font-size:0.75rem;color:#E65100;font-weight:600;display:block;">(en attente d\'envoi Cloud)</span>'}</span>
-      <span class="tm">${r.time.slice(0,5)}<span class="tag">${r.late?`+${r.lateMin} min`:'à l\'heure'}</span></span>
+      <span class="tm">${r.time.slice(0, 5)}<span class="tag">${r.late ? `+${r.lateMin} min` : 'à l\'heure'}</span></span>
     </li>`).join('') : '<p class="hint">Personne n\'a encore pointé ce jour-là. Cliquez sur Actualiser pour synchroniser le Cloud.</p>');
+
+  // Liste des absents
+  const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46' viewBox='0 0 24 24' fill='%23B3261E'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+
+  $('#alist').innerHTML = absents.length ? absents.map(p => `
+    <li class="row row-absent">
+      <span class="rk rk-absent">✕</span>
+      <img src="${p.lastPhoto || defaultAvatar}" alt="Photo de ${esc(p.name)}" data-photo="${esc(p.lastPhoto || '')}">
+      <span class="nm">${esc(p.name)}<span class="tag tag-absent">Dernière présence : ${p.lastDate ? frDate(p.lastDate) + ' à ' + p.lastTime.slice(0, 5) : 'Inconnue'}</span></span>
+      <span class="tm" style="text-align:right"><span class="flag flag-absent">ABSENT</span></span>
+    </li>`).join('') : '<p class="hint" style="color:var(--green);font-weight:600;padding:12px;text-align:center;">🎉 Aucun absent ! Toutes les personnes enregistrées ont pointé ce jour-là.</p>';
+
+  setRankTab(currentRankTab);
 }
-$('#rlist').addEventListener('click',async e=>{
-  const id=e.target.dataset && e.target.dataset.id; if(!id) return;
-  const r=await DB.get(id); if(!r) return;
-  $('#dimg').src=r.photo; $('#dlg').showModal();
-});
-$('#dclose').onclick=()=>$('#dlg').close();
 
 /* ============ Direction ============ */
 let unlocked=false;
@@ -783,7 +906,8 @@ async function renderDir(){
   $('#gate').classList.toggle('hidden',unlocked); $('#panel').classList.toggle('hidden',!unlocked);
   if(!unlocked) return;
   const cut=cutoffDate(+$('#period').value);
-  const recs=(await DB.all()).filter(r=>r.date>=cut);
+  const allRecs=(await DB.all());
+  const recs=allRecs.filter(r=>r.date>=cut);
   const m=new Map();
   recs.forEach(r=>{
     const k=key(r.name); const s=m.get(k)||{name:r.name,days:0,late:0,lateMin:0,sum:0};
@@ -792,10 +916,49 @@ async function renderDir(){
   const all=[...m.values()].map(s=>({...s,avg:s.sum/s.days,rate:s.late/s.days}));
   const best=[...all].sort((a,b)=>a.rate-b.rate||a.avg-b.avg);
   const lates=all.filter(s=>s.late>0).sort((a,b)=>b.late-a.late||b.lateMin-a.lateMin);
+
+  // Cartographie de toutes les personnes enregistrées pour calculer les absences
+  const knownMap = new Map();
+  for (const r of allRecs) {
+    const k = key(r.name);
+    if (!knownMap.has(k)) knownMap.set(k, { key: k, name: r.name, firstDate: r.date, lastDate: r.date });
+    else {
+      const p = knownMap.get(k);
+      if (r.date < p.firstDate) p.firstDate = r.date;
+      if (r.date > p.lastDate) p.lastDate = r.date;
+    }
+  }
+
+  // Jours d'activité du centre sur la période
+  const periodDays = [...new Set(recs.map(r => r.date))];
+  const absentStats = [];
+  for (const p of knownMap.values()) {
+    const activeDaysForP = periodDays.filter(d => d >= p.firstDate);
+    if (activeDaysForP.length > 0) {
+      const pDates = new Set(recs.filter(r => key(r.name) === p.key).map(r => r.date));
+      const missed = activeDaysForP.filter(d => !pDates.has(d)).length;
+      if (missed > 0) {
+        absentStats.push({
+          name: p.name,
+          missed,
+          total: activeDaysForP.length,
+          rate: missed / activeDaysForP.length,
+          lastDate: p.lastDate
+        });
+      }
+    }
+  }
+  absentStats.sort((a, b) => b.missed - a.missed || b.rate - a.rate);
+
   $('#thrmsg').textContent=`À convoquer : ${CONFIG.DISCIPLINE_THRESHOLD} retards ou plus sur la période.`;
   $('#tlate').innerHTML = lates.length
     ? `<tr><th>Nom</th><th class="n">Retards</th><th class="n">Minutes</th><th></th></tr>`+lates.map(s=>`<tr><td>${esc(s.name)}</td><td class="n">${s.late}/${s.days}</td><td class="n">${s.lateMin}</td><td>${s.late>=CONFIG.DISCIPLINE_THRESHOLD?'<span class="flag">Conseil</span>':''}</td></tr>`).join('')
     : '<tr><td>Aucun retard sur cette période.</td></tr>';
+
+  $('#tabsents').innerHTML = absentStats.length
+    ? `<tr><th>Nom</th><th class="n">Absences</th><th class="n">Taux</th><th>Dernière prés.</th><th></th></tr>`+absentStats.map(s=>`<tr><td>${esc(s.name)}</td><td class="n">${s.missed}/${s.total}</td><td class="n">${Math.round(s.rate*100)}%</td><td>${frDate(s.lastDate)}</td><td>${s.missed>=CONFIG.DISCIPLINE_THRESHOLD?'<span class="flag">Conseil</span>':''}</td></tr>`).join('')
+    : '<tr><td>Aucune absence constatée sur cette période.</td></tr>';
+
   $('#tbest').innerHTML = best.length
     ? `<tr><th>Rang</th><th>Nom</th><th class="n">Présent</th><th class="n">Retards</th><th class="n">Moy.</th></tr>`+best.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td class="n">${s.days} j</td><td class="n">${s.late}</td><td class="n">${hm(s.avg)}</td></tr>`).join('')
     : '<tr><td>Pas encore de données.</td></tr>';
@@ -806,6 +969,39 @@ $('#csv').onclick=async()=>{
   const rows=[['Date','Nom','Heure','Statut','Retard (min)']].concat(recs.map(r=>[frDate(r.date),r.name,r.time,r.late?'Retard':'À l\'heure',r.lateMin]));
   const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
   const fname=`pointage-cfpm-${nowDla().date}.csv`;
+  if(window.AndroidBridge){ try{ AndroidBridge.saveCsv(fname,csv); }catch(e){ alert("Export impossible."); } return; }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+};
+
+$('#csv-day').onclick=async()=>{
+  const date=$('#rdate').value || nowDla().date;
+  const allRecs = await DB.all();
+  const list = allRecs.filter(r=>r.date===date).sort((a,b)=>a.secs-b.secs);
+  const presentKeys = new Set(list.map(r => key(r.name)));
+
+  const knownMap = new Map();
+  for (const r of allRecs) {
+    const k = key(r.name);
+    if (!knownMap.has(k)) knownMap.set(k, { key: k, name: r.name, firstDate: r.date });
+    else if (r.date < knownMap.get(k).firstDate) knownMap.get(k).firstDate = r.date;
+  }
+
+  const absents = [...knownMap.values()]
+    .filter(p => p.firstDate <= date && !presentKeys.has(p.key))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
+  const rows=[['Date','Nom','Statut','Heure Arrivée','Retard (min)']];
+  for (const r of list) {
+    rows.push([frDate(date), r.name, r.late ? 'En retard' : 'À l\'heure', r.time, r.lateMin]);
+  }
+  for (const a of absents) {
+    rows.push([frDate(date), a.name, 'ABSENT', '--:--:--', '0']);
+  }
+
+  const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const fname=`bilan-presence-cfpm-${date}.csv`;
   if(window.AndroidBridge){ try{ AndroidBridge.saveCsv(fname,csv); }catch(e){ alert("Export impossible."); } return; }
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
