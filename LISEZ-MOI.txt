@@ -1,0 +1,15 @@
+APPLICATION ANDROID : POINTAGE CFPM GBE AUTO 237
+================================================
+
+Construire l'APK avec Android Studio (gratuit) :
+ 1. Installer Android Studio (developer.android.com/studio), sur PC ou Mac, avec internet.
+ 2. Décompresser ce dossier, puis : File > Open > choisir le dossier PointageCFPM.
+ 3. Attendre la fin de "Gradle sync" (le premier téléchargement est long).
+ 4. Menu : Build > Build Bundle(s) / APK(s) > Build APK(s).
+ 5. Cliquer sur "locate" : le fichier est app/build/outputs/apk/debug/app-debug.apk
+ 6. Copier l'APK sur la tablette/le téléphone et l'installer
+    (autoriser "Installer des applications inconnues" si Android le demande).
+
+Réglages (code PIN, seuil de convocation...) : app/src/main/assets/index.html, bloc CONFIG, en haut du script.
+Après modification de index.html, refaire l'étape 4 puis réinstaller l'APK.
+Android minimum : 10.

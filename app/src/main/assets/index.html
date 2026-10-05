@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E5A3C">
+<title>Pointage CFPM GBE AUTO 237</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+:root{
+  --bg:#EDEFE8; --card:#fff; --ink:#14211B; --muted:#5B685F; --line:#C9CFC4;
+  --green:#0E5A3C; --green-soft:#D5E8DB; --red:#B3261E; --red-soft:#F7DAD6; --gold:#E2A915;
+  --head:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  box-sizing:border-box;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body{padding-top:env(safe-area-inset-top,0px)}
+button,input,select{font:inherit;color:inherit}
+h2,h3{font-family:var(--head);font-weight:700;margin:0;line-height:1.1}
+h2{font-size:1.7rem}
+h3{font-size:1.25rem}
+.hidden{display:none!important}
+
+/* En-tête : le tableau de bord de l'heure */
+.top{background:var(--green);color:#fff;padding:14px 16px 0;position:sticky;top:0;z-index:5;padding-top:calc(14px + env(safe-area-inset-top,0px));margin-top:calc(-1 * env(safe-area-inset-top,0px))}
+.brand{display:flex;gap:10px;align-items:center}
+.logo{background:var(--gold);color:#1b1500;font-family:var(--head);font-weight:700;font-size:1.3rem;padding:2px 9px;border-radius:4px 12px 4px 12px}
+.brand b{font-family:var(--head);font-size:1.15rem;letter-spacing:.02em;display:block;line-height:1.1}
+.brand small{opacity:.8;font-size:.8rem}
+.clock{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px}
+#clk{font-family:var(--head);font-weight:700;font-size:3.1rem;line-height:1;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+#clkmsg{font-size:.88rem;text-align:right;max-width:48%;line-height:1.25}
+.bar{height:8px;background:rgba(255,255,255,.22);margin:10px -16px 0;position:relative}
+.bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .6s}
+.bar.over i{background:#FF8A80}
+.bar span{position:absolute;right:0;top:-2px;bottom:-2px;width:3px;background:#fff}
+
+main{padding:16px 16px calc(92px + env(safe-area-inset-bottom,0px));max-width:620px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:16px;margin-bottom:14px}
+label{font-weight:600;display:block;margin-bottom:6px}
+input[type=text],input[type=password],input[type=date],select{width:100%;padding:13px 12px;border:2px solid var(--line);border-radius:8px;background:#fff;font-size:1.05rem}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.btn{display:block;width:100%;border:0;border-radius:10px;padding:14px;background:var(--green);color:#fff;font-weight:600;font-size:1.05rem;margin-top:12px;cursor:pointer}
+.btn.alt{background:#fff;color:var(--green);border:2px solid var(--green)}
+.btn.danger{background:var(--red)}
+.btn.sm{display:inline-block;width:auto;padding:8px 12px;font-size:.9rem;margin:0}
+.err{color:var(--red);font-weight:600;margin-top:8px;min-height:1.2em;font-size:.95rem}
+.hint{color:var(--muted);font-size:.9rem;margin:6px 0 0}
+
+/* Étapes */
+.steps{display:flex;gap:6px;margin-bottom:14px}
+.steps div{flex:1;padding:8px 6px;text-align:center;font-weight:600;font-size:.9rem;border-bottom:4px solid var(--line);color:var(--muted)}
+.steps div.on{border-color:var(--gold);color:var(--ink)}
+.steps div.done{border-color:var(--green);color:var(--green)}
+
+.cam{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;max-height:56vh;margin:0 auto}
+.cam video,.cam img{width:100%;height:100%;object-fit:cover;display:block}
+.cam video.front{transform:scaleX(-1)}
+.frame{position:absolute;inset:18% 14%;border:3px solid var(--gold);border-radius:14px;pointer-events:none;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+
+.qrstate{position:absolute;left:10px;right:10px;bottom:10px;padding:8px 10px;border-radius:8px;font-weight:600;font-size:.92rem;text-align:center;color:#fff;background:rgba(0,0,0,.6)}
+.qrstate.ok{background:var(--green)} .qrstate.bad{background:var(--red)}
+
+/* Résultat */
+.res{text-align:center;padding:26px 16px}
+.res.ok{background:var(--green-soft);border-color:var(--green)}
+.res.late{background:var(--red-soft);border-color:var(--red)}
+.res .big{font-family:var(--head);font-weight:700;font-size:2.6rem;line-height:1}
+.res.ok .big{color:var(--green)} .res.late .big{color:var(--red)}
+.res img{width:120px;height:120px;border-radius:50%;object-fit:cover;border:4px solid #fff;margin:0 auto 12px;display:block}
+.res .rank{font-family:var(--head);font-size:1.5rem;margin-top:10px}
+
+/* Listes */
+ul.list{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:38px 46px 1fr auto;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--green);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.row.late{border-left-color:var(--red)}
+.rk{font-family:var(--head);font-weight:700;font-size:1.6rem;text-align:center}
+.row:nth-child(1) .rk{color:var(--gold)}
+.row img{width:46px;height:46px;border-radius:8px;object-fit:cover;background:#ddd;cursor:pointer}
+.nm{font-weight:600;word-break:break-word}
+.tm{font-family:var(--head);font-weight:700;font-size:1.3rem;text-align:right;line-height:1.1}
+.tag{display:block;font-family:var(--body);font-size:.75rem;font-weight:600;color:var(--green)}
+.row.late .tag{color:var(--red)}
+.sum{display:flex;gap:8px;margin:12px 0}
+.sum div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
+.sum b{font-family:var(--head);font-size:1.8rem;display:block;line-height:1}
+.sum .l b{color:var(--red)} .sum .o b{color:var(--green)}
+
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-weight:600;color:var(--muted)}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.flag{background:var(--red);color:#fff;border-radius:6px;padding:2px 7px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.scroll{overflow-x:auto}
+
+nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
+nav button{flex:1;border:0;background:none;padding:14px 4px;font-family:var(--head);font-weight:700;font-size:1.15rem;color:var(--muted);border-top:4px solid transparent;cursor:pointer}
+nav button.on{color:var(--green);border-top-color:var(--gold)}
+
+dialog{border:0;border-radius:14px;padding:12px;max-width:92vw;width:420px}
+dialog img{width:100%;border-radius:8px;display:block}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+body.inapp #selfiefile{display:none!important}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="logo">GBE</span><div><b>CFPM GBE AUTO 237</b><small>Pointage d'arrivée</small></div></div>
+  <div class="clock"><div id="clk">--:--:--</div><div id="clkmsg"></div></div>
+  <div class="bar" id="bar"><i id="barfill"></i><span></span></div>
+</header>
+
+<main>
+  <!-- ===== POINTER ===== -->
+  <section id="v-pointer">
+    <div class="steps" id="steps"><div data-s="1">1 Nom</div><div data-s="2">2 Photo avec le QR code</div></div>
+
+    <div id="p1" class="card">
+      <h2>Qui arrive ?</h2>
+      <p class="hint" style="margin-bottom:12px">Écrivez votre nom complet, toujours de la même façon.</p>
+      <label for="name">Nom et prénom</label>
+      <input id="name" type="text" autocomplete="off" autocapitalize="words" list="known" placeholder="Ex. : Mbarga Jean">
+      <datalist id="known"></datalist>
+      <div class="err" id="e1"></div>
+      <button class="btn" id="b1">Continuer</button>
+    </div>
+
+    <div id="p2" class="card hidden">
+      <h2>Photo avec le QR code</h2>
+      <p class="hint" style="margin:6px 0 12px">Placez-vous à côté de l'affiche « Scannez-moi ! » : votre visage et le QR code doivent être visibles ensemble sur la photo. La date et l'heure s'ajoutent automatiquement.</p>
+      <div class="cam"><video id="vid2" class="front" playsinline muted></video><img id="shot" class="hidden" alt="Votre photo"><div class="qrstate none" id="qrstate">Recherche du QR code…</div></div>
+      <canvas id="cv2" class="hidden"></canvas>
+      <div class="err" id="e2"></div>
+      <button class="btn" id="snap">Prendre la photo</button>
+      <button class="btn hidden" id="validate">Valider mon arrivée</button>
+      <button class="btn alt hidden" id="retake">Reprendre la photo</button>
+      <button class="btn alt" id="flip">Changer de caméra (avant / arrière)</button>
+      <button class="btn alt" id="selfiefile">La caméra ne démarre pas : photo avec l'appareil</button>
+      <input id="sfile" type="file" accept="image/*" capture="user" class="hidden">
+      <button class="btn alt" id="back2">Changer de nom</button>
+    </div>
+
+    <div id="p4" class="hidden"></div>
+  </section>
+
+  <!-- ===== CLASSEMENT ===== -->
+  <section id="v-rank" class="hidden">
+    <h2>Classement du jour</h2>
+    <p class="hint" style="margin-bottom:10px">Le premier arrivé est rang 1.</p>
+    <input id="rdate" type="date" aria-label="Choisir la date">
+    <div class="sum" id="rsum"></div>
+    <ul class="list" id="rlist"></ul>
+  </section>
+
+  <!-- ===== DIRECTION ===== -->
+  <section id="v-dir" class="hidden">
+    <div id="gate" class="card">
+      <h2>Espace direction</h2>
+      <p class="hint" style="margin:6px 0 12px">Retardataires, discipline et export : réservé à la direction.</p>
+      <label for="pin">Code d'accès</label>
+      <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+      <div class="err" id="e5"></div>
+      <button class="btn" id="unlock">Ouvrir</button>
+    </div>
+    <div id="panel" class="hidden">
+      <h2>Discipline</h2>
+      <label for="period" style="margin-top:12px">Période analysée</label>
+      <select id="period">
+        <option value="7">7 derniers jours</option>
+        <option value="30" selected>30 derniers jours</option>
+        <option value="90">90 derniers jours</option>
+        <option value="0">Depuis le début</option>
+      </select>
+      <div class="card" style="margin-top:14px">
+        <h3>Retardataires à convoquer</h3>
+        <p class="hint" id="thrmsg"></p>
+        <div class="scroll"><table id="tlate"></table></div>
+      </div>
+      <div class="card">
+        <h3>Classement des plus disciplinés</h3>
+        <p class="hint">Moins de retards en proportion, puis heure moyenne d'arrivée la plus tôt.</p>
+        <div class="scroll"><table id="tbest"></table></div>
+      </div>
+      <button class="btn" id="csv">Exporter en CSV (Excel)</button>
+      <button class="btn alt" id="manage">Corriger ou supprimer un pointage</button>
+      <div id="mlist" class="hidden" style="margin-top:12px"></div>
+      <button class="btn alt" id="lock">Verrouiller</button>
+      <button class="btn danger" id="wipe">Effacer toutes les données</button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-v="pointer" class="on">Pointer</button>
+  <button data-v="rank">Classement</button>
+  <button data-v="dir">Direction</button>
+</nav>
+
+<dialog id="dlg"><img id="dimg" alt="Photo du pointage"><button class="btn" id="dclose">Fermer</button></dialog>
+
+<script>
+/* ============ RÉGLAGES (à modifier ici) ============ */
+const CONFIG = {
+  QR_MATCH: '776f5514',                 // identifiant contenu dans le QR du centre (https://myqrcode.mobi/776f5514)
+  TZ: 'Africa/Douala',                  // heure du Cameroun (UTC+1)
+  DEADLINE_SECS: 8 * 3600,              // 08:00:00 ; après = retardataire
+  ADMIN_PIN: '2370',                    // CHANGEZ CE CODE
+  DISCIPLINE_THRESHOLD: 3,              // nb de retards (sur la période) avant convocation
+  PHOTO_TO_VALIDATE_MAX_MS: 5 * 60 * 1000  // la photo doit être validée dans les 5 min
+};
+
+/* ============ Utilitaires ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const key = n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const pad = n => String(n).padStart(2,'0');
+const fmtDla = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+function nowDla(ts){
+  const p={}; fmtDla.formatToParts(new Date(ts ?? Date.now())).forEach(x=>p[x.type]=x.value);
+  return {date:`${p.year}-${p.month}-${p.day}`, time:`${p.hour}:${p.minute}:${p.second}`, secs:(+p.hour)*3600+(+p.minute)*60+(+p.second)};
+}
+const hm = secs => `${pad(Math.floor(secs/3600))}:${pad(Math.floor(secs%3600/60))}`;
+const frDate = d => { const [y,m,j]=d.split('-'); return `${j}/${m}/${y}`; };
+
+/* ============ Stockage local (IndexedDB, repli mémoire) ============ */
+const DB = {
+  db:null, mem:new Map(),
+  async init(){
+    try{
+      this.db = await new Promise((ok,ko)=>{
+        const r = indexedDB.open('cfpm-pointage',1);
+        r.onupgradeneeded = ()=> r.result.createObjectStore('c',{keyPath:'id'});
+        r.onsuccess = ()=> ok(r.result); r.onerror = ()=> ko(r.error);
+      });
+    }catch(e){ this.db=null; }
+  },
+  _req(mode,fn){ return new Promise((ok,ko)=>{ const q=fn(this.db.transaction('c',mode).objectStore('c')); q.onsuccess=()=>ok(q.result); q.onerror=()=>ko(q.error); }); },
+  async all(){ return this.db ? this._req('readonly',s=>s.getAll()) : [...this.mem.values()]; },
+  async get(id){ return this.db ? this._req('readonly',s=>s.get(id)) : this.mem.get(id); },
+  async put(r){ return this.db ? this._req('readwrite',s=>s.put(r)) : void this.mem.set(r.id,r); },
+  async del(id){ return this.db ? this._req('readwrite',s=>s.delete(id)) : void this.mem.delete(id); },
+  async clear(){ return this.db ? this._req('readwrite',s=>s.clear()) : void this.mem.clear(); }
+};
+
+/* ============ Horloge ============ */
+function tick(){
+  const t = nowDla();
+  $('#clk').textContent = t.time;
+  const left = CONFIG.DEADLINE_SECS - t.secs;
+  const over = left < 0;
+  $('#clkmsg').textContent = over
+    ? `Après 8h00 : le pointage compte en retard (+${Math.ceil(-left/60)} min)`
+    : `Il reste ${Math.ceil(left/60)} min avant 8h00`;
+  const start = CONFIG.DEADLINE_SECS - 2*3600;
+  const pct = Math.max(0, Math.min(100, (t.secs - start) / (2*3600) * 100));
+  $('#barfill').style.width = pct + '%';
+  $('#bar').classList.toggle('over', over);
+}
+setInterval(tick,1000); tick();
+
+/* ============ Caméra ============ */
+let stream=null, raf=0;
+function stopCam(){
+  cancelAnimationFrame(raf);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+}
+async function openCam(video,facing){
+  stopCam();
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no-camera-api');
+  stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280}},audio:false});
+  video.srcObject = stream;
+  await video.play();
+}
+
+/* ============ Parcours de pointage ============ */
+const S = {name:'', capTs:null, photo:null, facing:'user'};
+
+function goStep(n){
+  ['p1','p2','p4'].forEach(id=>$('#'+id).classList.toggle('hidden', id!=='p'+n));
+  $('#steps').classList.toggle('hidden', n===4);
+  document.querySelectorAll('#steps div').forEach(d=>{
+    const s=+d.dataset.s; d.classList.toggle('on',s===n); d.classList.toggle('done',s<n);
+  });
+  if(n!==2) stopCam();
+}
+const setErr = (sel,msg)=>{ $(sel).textContent = msg||''; };
+
+async function refreshKnown(){
+  const names=new Map(); (await DB.all()).forEach(r=>names.set(key(r.name),r.name));
+  $('#known').innerHTML=[...names.values()].sort().map(n=>`<option value="${esc(n)}">`).join('');
+}
+
+$('#b1').onclick = async ()=>{
+  const name = $('#name').value.trim().replace(/\s+/g,' ');
+  if(name.length<3){ setErr('#e1','Saisissez votre nom complet (3 lettres minimum).'); return; }
+  setErr('#e1');
+  const t = nowDla();
+  const ex = await DB.get(t.date+'|'+key(name));
+  if(ex){ showResult(ex,true); return; }
+  S.name = name; S.capTs = null; S.photo = null;
+  goStep(2); startCam();
+};
+$('#name').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#b1').click(); });
+$('#back2').onclick = ()=>{ goStep(1); };
+
+function matchQR(txt){ return typeof txt==='string' && txt.toLowerCase().includes(CONFIG.QR_MATCH.toLowerCase()); }
+function setQR(st){
+  const e=$('#qrstate'); e.className='qrstate '+st;
+  e.textContent = st==='ok' ? 'QR code du centre détecté ✓' : st==='bad' ? "Ce n'est pas le QR code du centre" : 'Recherche du QR code…';
+}
+function shotMode(on){
+  $('#shot').classList.toggle('hidden',!on); $('#vid2').classList.toggle('hidden',on); $('#qrstate').classList.toggle('hidden',on);
+  ['#snap','#flip','#selfiefile'].forEach(i=>$(i).classList.toggle('hidden',on));
+  ['#validate','#retake'].forEach(i=>$(i).classList.toggle('hidden',!on));
+}
+
+async function startCam(){
+  setErr('#e2'); S.photo=null; shotMode(false); setQR('none');
+  $('#selfiefile').classList.add('alt');
+  const v=$('#vid2');
+  try{ await openCam(v,S.facing); }
+  catch(e){
+    setErr('#e2', window.AndroidBridge ? "Caméra refusée. Ouvrez les paramètres Android > Applications > Pointage CFPM > Autorisations, et autorisez la caméra." : "La caméra intégrée est bloquée ici. Ouvrez cette page dans Chrome (en HTTPS) ou utilisez le bouton « Prendre la photo avec l'appareil ».");
+    ['#snap','#flip'].forEach(i=>$(i).classList.add('hidden'));
+    $('#selfiefile').classList.remove('alt'); $('#selfiefile').textContent="Prendre la photo avec l'appareil";
+    return;
+  }
+  $('#selfiefile').textContent="La caméra ne démarre pas : photo avec l'appareil";
+  v.classList.toggle('front',S.facing==='user');
+  liveLoop();
+}
+
+/* Détection du QR en direct (aide visuelle) */
+let lastScan=0;
+function liveLoop(){
+  const v=$('#vid2'), now=performance.now();
+  if(now-lastScan>300 && v.readyState>=2 && v.videoWidth && window.jsQR){
+    lastScan=now;
+    const w=Math.min(960,v.videoWidth), h=Math.round(v.videoHeight*w/v.videoWidth);
+    const cv=$('#cv2'), ctx=cv.getContext('2d',{willReadFrequently:true});
+    cv.width=w; cv.height=h; ctx.drawImage(v,0,0,w,h);
+    const r=jsQR(ctx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:'attemptBoth'});
+    setQR(r && r.data ? (matchQR(r.data)?'ok':'bad') : 'none');
+  }
+  raf=requestAnimationFrame(liveLoop);
+}
+
+/* Contrôle du QR dans la photo, puis ajout automatique de la date et de l'heure */
+function processPhoto(srcW,srcH,drawFn){
+  if(!window.jsQR){ setErr('#e2','Lecteur de QR non chargé : vérifiez la connexion internet puis rechargez la page.'); return false; }
+  const dw=Math.min(1280,srcW), dh=Math.round(srcH*dw/srcW);
+  const cv=$('#cv2'), ctx=cv.getContext('2d',{willReadFrequently:true});
+  cv.width=dw; cv.height=dh; drawFn(ctx,dw,dh);
+  const r=jsQR(ctx.getImageData(0,0,dw,dh).data,dw,dh,{inversionAttempts:'attemptBoth'});
+  if(!r || !r.data){ setErr('#e2',"QR code introuvable dans la photo. Placez-vous à côté de l'affiche, QR bien visible et net, puis reprenez."); return false; }
+  if(!matchQR(r.data)){ setErr('#e2',"Ce QR code n'est pas celui du centre de formation."); return false; }
+  setErr('#e2');
+  S.capTs=Date.now();
+  const t=nowDla(S.capTs);
+  const w=640, h=Math.round(dh*w/dw), bar=64;
+  const out=document.createElement('canvas'); out.width=w; out.height=h+bar;
+  const o=out.getContext('2d');
+  o.drawImage(cv,0,0,w,h);
+  o.fillStyle='#0E5A3C'; o.fillRect(0,h,w,bar);
+  o.fillStyle='#fff'; o.font='bold 22px sans-serif'; o.fillText(S.name.slice(0,32),12,h+27);
+  o.font='17px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (heure du Cameroun)`,12,h+52);
+  S.photo=out.toDataURL('image/jpeg',0.72);
+  $('#shot').src=S.photo;
+  stopCam(); shotMode(true);
+  return true;
+}
+
+$('#snap').onclick = ()=>{
+  const v=$('#vid2');
+  if(!v.videoWidth){ setErr('#e2',"La caméra n'est pas prête."); return; }
+  processPhoto(v.videoWidth,v.videoHeight,(ctx,w,h)=>ctx.drawImage(v,0,0,w,h));
+};
+$('#flip').onclick = ()=>{ S.facing = S.facing==='user' ? 'environment' : 'user'; startCam(); };
+$('#selfiefile').onclick = ()=> $('#sfile').click();
+$('#sfile').onchange = e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  setErr('#e2');
+  const img=new Image();
+  img.onload=()=>{ processPhoto(img.width,img.height,(ctx,w,h)=>ctx.drawImage(img,0,0,w,h)); URL.revokeObjectURL(img.src); };
+  img.src=URL.createObjectURL(f);
+};
+$('#retake').onclick = startCam;
+
+$('#validate').onclick = async ()=>{
+  if(!S.photo) return;
+  if(Date.now()-S.capTs > CONFIG.PHOTO_TO_VALIDATE_MAX_MS){
+    setErr('#e2','Photo trop ancienne. Reprenez la photo.');
+    setTimeout(startCam,1500); return;
+  }
+  const t=nowDla(S.capTs);
+  const id=t.date+'|'+key(S.name);
+  const ex=await DB.get(id); if(ex){ showResult(ex,true); return; }
+  const late = t.secs > CONFIG.DEADLINE_SECS;
+  const rec={id,name:S.name,date:t.date,time:t.time,secs:t.secs,late,
+    lateMin: late ? Math.ceil((t.secs-CONFIG.DEADLINE_SECS)/60) : 0,
+    photo:S.photo,capTs:S.capTs,savedTs:Date.now()};
+  try{ await DB.put(rec); }catch(e){ setErr('#e2',"Enregistrement impossible : l'espace de stockage est plein."); return; }
+  refreshKnown();
+  showResult(rec,false);
+};
+
+async function showResult(rec,already){
+  const day=(await DB.all()).filter(r=>r.date===rec.date).sort((a,b)=>a.secs-b.secs);
+  const rank=day.findIndex(r=>r.id===rec.id)+1;
+  $('#p4').innerHTML=`
+    <div class="card res ${rec.late?'late':'ok'}">
+      <img src="${rec.photo}" alt="">
+      <div class="nm" style="font-size:1.2rem">${esc(rec.name)}</div>
+      <div class="big">${rec.late?`En retard : +${rec.lateMin} min`:'À l\'heure'}</div>
+      <p style="margin:8px 0 0">${already?'Déjà pointé aujourd\'hui à ':'Arrivée enregistrée à '}<b>${rec.time}</b> (heure du Cameroun)</p>
+      <div class="rank">Rang ${rank} sur ${day.length} aujourd'hui</div>
+    </div>
+    <button class="btn" id="again">Pointer une autre personne</button>`;
+  goStep(4);
+  $('#again').onclick=()=>{ $('#name').value=''; S.name='';S.photo=null;S.capTs=null; goStep(1); $('#name').focus(); };
+}
+
+/* ============ Classement du jour ============ */
+$('#rdate').addEventListener('change',renderRank);
+async function renderRank(){
+  const date=$('#rdate').value || nowDla().date; $('#rdate').value=date;
+  const list=(await DB.all()).filter(r=>r.date===date).sort((a,b)=>a.secs-b.secs);
+  const late=list.filter(r=>r.late).length;
+  $('#rsum').innerHTML=`<div><b>${list.length}</b>présents</div><div class="o"><b>${list.length-late}</b>à l'heure</div><div class="l"><b>${late}</b>en retard</div>`;
+  $('#rlist').innerHTML = list.length ? list.map((r,i)=>`
+    <li class="row ${r.late?'late':''}">
+      <span class="rk">${i+1}</span>
+      <img src="${r.photo}" alt="Photo de ${esc(r.name)}" data-id="${esc(r.id)}">
+      <span class="nm">${esc(r.name)}</span>
+      <span class="tm">${r.time.slice(0,5)}<span class="tag">${r.late?`+${r.lateMin} min`:'à l\'heure'}</span></span>
+    </li>`).join('') : '<p class="hint">Personne n\'a encore pointé ce jour-là.</p>';
+}
+$('#rlist').addEventListener('click',async e=>{
+  const id=e.target.dataset && e.target.dataset.id; if(!id) return;
+  const r=await DB.get(id); if(!r) return;
+  $('#dimg').src=r.photo; $('#dlg').showModal();
+});
+$('#dclose').onclick=()=>$('#dlg').close();
+
+/* ============ Direction ============ */
+let unlocked=false;
+$('#unlock').onclick=()=>{
+  if($('#pin').value===CONFIG.ADMIN_PIN){ unlocked=true; $('#pin').value=''; setErr('#e5'); renderDir(); }
+  else setErr('#e5','Code incorrect.');
+};
+$('#pin').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#unlock').click(); });
+$('#lock').onclick=()=>{ unlocked=false; renderDir(); };
+$('#period').onchange=renderDir;
+
+function cutoffDate(days){ return days>0 ? nowDla(Date.now()-days*86400000).date : '0000-00-00'; }
+
+async function renderDir(){
+  $('#gate').classList.toggle('hidden',unlocked); $('#panel').classList.toggle('hidden',!unlocked);
+  if(!unlocked) return;
+  const cut=cutoffDate(+$('#period').value);
+  const recs=(await DB.all()).filter(r=>r.date>=cut);
+  const m=new Map();
+  recs.forEach(r=>{
+    const k=key(r.name); const s=m.get(k)||{name:r.name,days:0,late:0,lateMin:0,sum:0};
+    s.days++; s.sum+=r.secs; if(r.late){s.late++; s.lateMin+=r.lateMin;} m.set(k,s);
+  });
+  const all=[...m.values()].map(s=>({...s,avg:s.sum/s.days,rate:s.late/s.days}));
+  const best=[...all].sort((a,b)=>a.rate-b.rate||a.avg-b.avg);
+  const lates=all.filter(s=>s.late>0).sort((a,b)=>b.late-a.late||b.lateMin-a.lateMin);
+  $('#thrmsg').textContent=`À convoquer : ${CONFIG.DISCIPLINE_THRESHOLD} retards ou plus sur la période.`;
+  $('#tlate').innerHTML = lates.length
+    ? `<tr><th>Nom</th><th class="n">Retards</th><th class="n">Minutes</th><th></th></tr>`+lates.map(s=>`<tr><td>${esc(s.name)}</td><td class="n">${s.late}/${s.days}</td><td class="n">${s.lateMin}</td><td>${s.late>=CONFIG.DISCIPLINE_THRESHOLD?'<span class="flag">Conseil</span>':''}</td></tr>`).join('')
+    : '<tr><td>Aucun retard sur cette période.</td></tr>';
+  $('#tbest').innerHTML = best.length
+    ? `<tr><th>Rang</th><th>Nom</th><th class="n">Présent</th><th class="n">Retards</th><th class="n">Moy.</th></tr>`+best.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td class="n">${s.days} j</td><td class="n">${s.late}</td><td class="n">${hm(s.avg)}</td></tr>`).join('')
+    : '<tr><td>Pas encore de données.</td></tr>';
+}
+
+$('#csv').onclick=async()=>{
+  const recs=(await DB.all()).sort((a,b)=>a.date.localeCompare(b.date)||a.secs-b.secs);
+  const rows=[['Date','Nom','Heure','Statut','Retard (min)']].concat(recs.map(r=>[frDate(r.date),r.name,r.time,r.late?'Retard':'À l\'heure',r.lateMin]));
+  const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const fname=`pointage-cfpm-${nowDla().date}.csv`;
+  if(window.AndroidBridge){ try{ AndroidBridge.saveCsv(fname,csv); }catch(e){ alert("Export impossible."); } return; }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+};
+
+$('#manage').onclick=async()=>{
+  const box=$('#mlist'); box.classList.toggle('hidden');
+  if(box.classList.contains('hidden')) return;
+  const recs=(await DB.all()).sort((a,b)=>b.savedTs-a.savedTs).slice(0,60);
+  box.innerHTML = recs.length ? recs.map(r=>`
+    <div class="row ${r.late?'late':''}" style="grid-template-columns:46px 1fr auto">
+      <img src="${r.photo}" alt="">
+      <span class="nm">${esc(r.name)}<span class="tag">${frDate(r.date)} ${r.time.slice(0,5)}</span></span>
+      <button class="btn danger sm" data-del="${esc(r.id)}">Supprimer</button>
+    </div>`).join('') : '<p class="hint">Aucun pointage.</p>';
+};
+$('#mlist').addEventListener('click',async e=>{
+  const id=e.target.dataset && e.target.dataset.del; if(!id) return;
+  if(!confirm('Supprimer ce pointage ? La personne pourra pointer à nouveau.')) return;
+  await DB.del(id); $('#manage').click(); $('#manage').click(); renderDir(); refreshKnown();
+});
+$('#wipe').onclick=async()=>{
+  if(!confirm('Effacer TOUS les pointages et photos ? Exportez le CSV avant.')) return;
+  if(!confirm('Dernière confirmation : cette action est définitive.')) return;
+  await DB.clear(); renderDir(); refreshKnown();
+};
+
+/* ============ Navigation ============ */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  const v=b.dataset.v;
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  ['pointer','rank','dir'].forEach(id=>$('#v-'+id).classList.toggle('hidden',id!==v));
+  if(v!=='pointer') stopCam();
+  if(v==='pointer' && !$('#p2').classList.contains('hidden') && $('#shot').classList.contains('hidden')) startCam();
+  if(v==='rank') renderRank();
+  if(v==='dir') renderDir();
+  window.scrollTo(0,0);
+});
+
+if(window.AndroidBridge) document.body.classList.add('inapp');
+DB.init().then(()=>{ refreshKnown(); goStep(1); });
+</script>
+</body>
+</html>

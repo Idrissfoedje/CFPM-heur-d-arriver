@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.Pointage" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#0E5A3C</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <color name="ic_launcher_background">#0E5A3C</color>
+</resources>
