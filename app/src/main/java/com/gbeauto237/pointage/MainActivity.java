@@ -5,7 +5,9 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -82,6 +84,10 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
+        s.setUseWideViewPort(true);
+        s.setLoadWithOverviewMode(true);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             s.setAllowFileAccessFromFileURLs(true);
             s.setAllowUniversalAccessFromFileURLs(true);
@@ -187,6 +193,20 @@ public class MainActivity extends Activity {
         web.loadUrl("https://appassets.androidplatform.net/assets/index.html");
     }
 
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (web != null && web.canGoBack()) {
+            web.goBack();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
     public class Bridge {
         @JavascriptInterface
         public boolean saveCsv(final String fileName, final String content) {
@@ -201,7 +221,6 @@ public class MainActivity extends Activity {
                 fos.flush();
                 fos.close();
 
-                // Scan file so Downloads app indexes it
                 android.media.MediaScannerConnection.scanFile(
                     MainActivity.this,
                     new String[]{file.getAbsolutePath()},
