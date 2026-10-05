@@ -5,6 +5,8 @@
 .DS_Store
 /build
 app/build/
+build_termux/
+*.idsig
 /captures
 .externalNativeBuild
 .cxx
