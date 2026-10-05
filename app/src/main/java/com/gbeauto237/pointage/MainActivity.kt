@@ -58,6 +58,9 @@ class MainActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
             allowFileAccess = false
             allowContentAccess = false
+            useWideViewPort = false
+            loadWithOverviewMode = false
+            textZoom = 100
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
 

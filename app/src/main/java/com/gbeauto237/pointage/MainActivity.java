@@ -84,8 +84,9 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
-        s.setUseWideViewPort(true);
-        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(false);
+        s.setLoadWithOverviewMode(false);
+        s.setTextZoom(100);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
