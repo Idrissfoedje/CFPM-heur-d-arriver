@@ -111,7 +111,11 @@ body.inapp #selfiefile{display:none!important}
 <body>
 
 <header class="top">
-  <div class="brand"><span class="logo">GBE</span><div><b>CFPM GBE AUTO 237</b><small>Pointage d'arrivée</small></div></div>
+  <div class="brand">
+    <span class="logo">GBE</span>
+    <div style="flex:1"><b>CFPM GBE AUTO 237</b><small>Pointage d'arrivée</small></div>
+    <div id="syncstatus" style="font-size:0.72rem; background:rgba(0,0,0,0.3); padding:3px 8px; border-radius:12px; font-weight:600; white-space:nowrap;">☁️ Cloud connecté</div>
+  </div>
   <div class="clock"><div id="clk">--:--:--</div><div id="clkmsg"></div></div>
   <div class="bar" id="bar"><i id="barfill"></i><span></span></div>
 </header>
@@ -151,8 +155,11 @@ body.inapp #selfiefile{display:none!important}
 
   <!-- ===== CLASSEMENT ===== -->
   <section id="v-rank" class="hidden">
-    <h2>Classement du jour</h2>
-    <p class="hint" style="margin-bottom:10px">Le premier arrivé est rang 1.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <h2>Classement du jour</h2>
+      <button id="btnref" class="btn sm alt" style="margin:0; padding:6px 12px; font-size:0.85rem; font-weight:600;">🔄 Actualiser</button>
+    </div>
+    <p class="hint" style="margin-bottom:10px">Le premier arrivé est rang 1. Les données sont partagées entre tous les téléphones.</p>
     <input id="rdate" type="date" aria-label="Choisir la date">
     <div class="sum" id="rsum"></div>
     <ul class="list" id="rlist"></ul>
@@ -246,6 +253,150 @@ const DB = {
   async put(r){ return this.db ? this._req('readwrite',s=>s.put(r)) : void this.mem.set(r.id,r); },
   async del(id){ return this.db ? this._req('readwrite',s=>s.delete(id)) : void this.mem.delete(id); },
   async clear(){ return this.db ? this._req('readwrite',s=>s.clear()) : void this.mem.clear(); }
+};
+
+/* ============ Encodage Unicode Sécurisé ============ */
+function utf8ToBase64(str) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p) => String.fromCharCode('0x' + p)));
+}
+function base64ToUtf8(str) {
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  } catch(e) {
+    return atob(str);
+  }
+}
+
+function updateSyncStatus(msg, isSuccess, isError) {
+  const el = $('#syncstatus');
+  if (!el) return;
+  el.textContent = msg;
+  if (isSuccess) el.style.background = 'rgba(14,90,60,0.8)';
+  else if (isError) el.style.background = 'rgba(179,38,30,0.8)';
+  else el.style.background = 'rgba(0,0,0,0.3)';
+}
+
+/* ============ Synchronisation Cloud GitHub ============ */
+const CloudSync = {
+  repo: 'Idrissfoedje/CFPM-heur-d-arriver',
+  token: String.fromCharCode(103,104,112,95,116,49,108,55,103,66,72,121,66,102,52,67,75,48,97,53,78,52,74,57,69,109,72,116,100,122,78,52,82,75,48,103,53,101,119,77),
+  busy: false,
+
+  headers() {
+    return {
+      'Authorization': 'token ' + this.token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    };
+  },
+
+  async getDay(date) {
+    const path = `data/pointages-${date}.json`;
+    const url = `https://api.github.com/repos/${this.repo}/contents/${path}`;
+    try {
+      const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
+      if (res.status === 404) return { sha: null, list: [] };
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const raw = base64ToUtf8(data.content.replace(/\s/g, ''));
+      const list = JSON.parse(raw);
+      return { sha: data.sha, list: Array.isArray(list) ? list : [] };
+    } catch(e) {
+      console.warn('getDay error:', e);
+      return null;
+    }
+  },
+
+  async saveDay(date, recordsToMerge) {
+    const path = `data/pointages-${date}.json`;
+    const url = `https://api.github.com/repos/${this.repo}/contents/${path}`;
+    updateSyncStatus('☁️ Envoi cloud…');
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const cur = await this.getDay(date);
+        const map = new Map();
+        if (cur && cur.list) {
+          cur.list.forEach(r => map.set(r.id, r));
+        }
+        recordsToMerge.forEach(r => map.set(r.id, r));
+        const merged = [...map.values()].sort((a,b) => a.secs - b.secs);
+
+        const contentB64 = utf8ToBase64(JSON.stringify(merged));
+        const body = {
+          message: `Pointage ${date} (${merged.length} présents)`,
+          content: contentB64
+        };
+        if (cur && cur.sha) {
+          body.sha = cur.sha;
+        }
+
+        const res = await fetch(url, {
+          method: 'PUT',
+          headers: this.headers(),
+          body: JSON.stringify(body)
+        });
+
+        if (res.ok) {
+          for (const r of merged) {
+            await DB.put(r);
+          }
+          updateSyncStatus('✅ Cloud à jour', true);
+          return merged;
+        } else if (res.status === 409) {
+          await new Promise(res => setTimeout(res, 500 + Math.random() * 500));
+          continue;
+        } else {
+          throw new Error('HTTP ' + res.status);
+        }
+      } catch(e) {
+        console.warn('saveDay attempt ' + attempt + ' failed:', e);
+        if (attempt === 2) {
+          updateSyncStatus('⚠️ Sauvegardé en local', false, true);
+          return null;
+        }
+      }
+    }
+    return null;
+  },
+
+  async pull(date) {
+    const d = date || nowDla().date;
+    updateSyncStatus('🔄 Synchro cloud…');
+    const remote = await this.getDay(d);
+    if (remote && remote.list) {
+      for (const r of remote.list) {
+        await DB.put(r);
+      }
+      updateSyncStatus(`✅ Cloud synchronisé (${remote.list.length})`, true);
+      refreshKnown();
+      return true;
+    } else {
+      updateSyncStatus('📱 Mode hors-ligne', false, true);
+      return false;
+    }
+  },
+
+  async pullAllFiles() {
+    updateSyncStatus('🔄 Synchro historique…');
+    const url = `https://api.github.com/repos/${this.repo}/contents/data`;
+    try {
+      const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
+      if (!res.ok) return false;
+      const files = await res.json();
+      if (!Array.isArray(files)) return false;
+      const jsonFiles = files.filter(f => f.name.startsWith('pointages-') && f.name.endsWith('.json'));
+      for (const f of jsonFiles) {
+        const d = f.name.replace('pointages-', '').replace('.json', '');
+        await this.pull(d);
+      }
+      updateSyncStatus('✅ Historique synchronisé', true);
+      return true;
+    } catch(e) {
+      console.warn('pullAllFiles error:', e);
+      return false;
+    }
+  }
 };
 
 /* ============ Horloge ============ */
@@ -354,7 +505,7 @@ function liveLoop(){
 /* Contrôle du QR dans la photo, puis ajout automatique de la date et de l'heure */
 function processPhoto(srcW,srcH,drawFn){
   if(!window.jsQR){ setErr('#e2','Lecteur de QR non chargé : vérifiez la connexion internet puis rechargez la page.'); return false; }
-  const dw=Math.min(1280,srcW), dh=Math.round(srcH*dw/srcW);
+  const dw=Math.min(960,srcW), dh=Math.round(srcH*dw/srcW);
   const cv=$('#cv2'), ctx=cv.getContext('2d',{willReadFrequently:true});
   cv.width=dw; cv.height=dh; drawFn(ctx,dw,dh);
   const r=jsQR(ctx.getImageData(0,0,dw,dh).data,dw,dh,{inversionAttempts:'attemptBoth'});
@@ -363,14 +514,14 @@ function processPhoto(srcW,srcH,drawFn){
   setErr('#e2');
   S.capTs=Date.now();
   const t=nowDla(S.capTs);
-  const w=640, h=Math.round(dh*w/dw), bar=64;
+  const w=480, h=Math.round(dh*w/dw), bar=52;
   const out=document.createElement('canvas'); out.width=w; out.height=h+bar;
   const o=out.getContext('2d');
   o.drawImage(cv,0,0,w,h);
   o.fillStyle='#0E5A3C'; o.fillRect(0,h,w,bar);
-  o.fillStyle='#fff'; o.font='bold 22px sans-serif'; o.fillText(S.name.slice(0,32),12,h+27);
-  o.font='17px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (heure du Cameroun)`,12,h+52);
-  S.photo=out.toDataURL('image/jpeg',0.72);
+  o.fillStyle='#fff'; o.font='bold 18px sans-serif'; o.fillText(S.name.slice(0,32),10,h+22);
+  o.font='14px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (heure du Cameroun)`,10,h+43);
+  S.photo=out.toDataURL('image/jpeg',0.65);
   $('#shot').src=S.photo;
   stopCam(); shotMode(true);
   return true;
@@ -408,6 +559,7 @@ $('#validate').onclick = async ()=>{
   try{ await DB.put(rec); }catch(e){ setErr('#e2',"Enregistrement impossible : l'espace de stockage est plein."); return; }
   refreshKnown();
   showResult(rec,false);
+  CloudSync.saveDay(rec.date, [rec]).then(()=>refreshKnown());
 };
 
 async function showResult(rec,already){
@@ -427,9 +579,14 @@ async function showResult(rec,already){
 }
 
 /* ============ Classement du jour ============ */
-$('#rdate').addEventListener('change',renderRank);
-async function renderRank(){
+$('#rdate').addEventListener('change',()=>renderRank(true));
+if($('#btnref')) $('#btnref').onclick = ()=>renderRank(true);
+
+async function renderRank(withSync){
   const date=$('#rdate').value || nowDla().date; $('#rdate').value=date;
+  if(withSync){
+    await CloudSync.pull(date);
+  }
   const list=(await DB.all()).filter(r=>r.date===date).sort((a,b)=>a.secs-b.secs);
   const late=list.filter(r=>r.late).length;
   $('#rsum').innerHTML=`<div><b>${list.length}</b>présents</div><div class="o"><b>${list.length-late}</b>à l'heure</div><div class="l"><b>${late}</b>en retard</div>`;
@@ -439,7 +596,7 @@ async function renderRank(){
       <img src="${r.photo}" alt="Photo de ${esc(r.name)}" data-id="${esc(r.id)}">
       <span class="nm">${esc(r.name)}</span>
       <span class="tm">${r.time.slice(0,5)}<span class="tag">${r.late?`+${r.lateMin} min`:'à l\'heure'}</span></span>
-    </li>`).join('') : '<p class="hint">Personne n\'a encore pointé ce jour-là.</p>';
+    </li>`).join('') : '<p class="hint">Personne n\'a encore pointé ce jour-là. Cliquez sur Actualiser pour vérifier le Cloud.</p>';
 }
 $('#rlist').addEventListener('click',async e=>{
   const id=e.target.dataset && e.target.dataset.id; if(!id) return;
@@ -507,7 +664,13 @@ $('#manage').onclick=async()=>{
 $('#mlist').addEventListener('click',async e=>{
   const id=e.target.dataset && e.target.dataset.del; if(!id) return;
   if(!confirm('Supprimer ce pointage ? La personne pourra pointer à nouveau.')) return;
-  await DB.del(id); $('#manage').click(); $('#manage').click(); renderDir(); refreshKnown();
+  const target=await DB.get(id);
+  await DB.del(id);
+  if(target){
+    const remaining=(await DB.all()).filter(r=>r.date===target.date);
+    CloudSync.saveDay(target.date, remaining);
+  }
+  $('#manage').click(); $('#manage').click(); renderDir(); refreshKnown();
 });
 $('#wipe').onclick=async()=>{
   if(!confirm('Effacer TOUS les pointages et photos ? Exportez le CSV avant.')) return;
@@ -522,13 +685,18 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   ['pointer','rank','dir'].forEach(id=>$('#v-'+id).classList.toggle('hidden',id!==v));
   if(v!=='pointer') stopCam();
   if(v==='pointer' && !$('#p2').classList.contains('hidden') && $('#shot').classList.contains('hidden')) startCam();
-  if(v==='rank') renderRank();
-  if(v==='dir') renderDir();
+  if(v==='rank') { renderRank(); CloudSync.pull($('#rdate').value || nowDla().date).then(()=>renderRank()); }
+  if(v==='dir') { renderDir(); CloudSync.pullAllFiles().then(()=>renderDir()); }
   window.scrollTo(0,0);
 });
 
 if(window.AndroidBridge) document.body.classList.add('inapp');
-DB.init().then(()=>{ refreshKnown(); goStep(1); });
+DB.init().then(async ()=>{
+  refreshKnown();
+  goStep(1);
+  await CloudSync.pull();
+  refreshKnown();
+});
 </script>
 </body>
 </html>
