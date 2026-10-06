@@ -122,14 +122,19 @@ class MainActivity : AppCompatActivity() {
         web.loadUrl("https://appassets.androidplatform.net/assets/index.html")
     }
 
-    /** Pont JavaScript -> Android : enregistre le CSV dans le dossier Téléchargements. */
+    /** Pont JavaScript -> Android : enregistre le CSV et les sauvegardes dans Téléchargements et le stockage local. */
     inner class Bridge {
         @JavascriptInterface
         fun saveCsv(fileName: String, content: String): Boolean {
+            return saveFile(fileName, content, "text/csv")
+        }
+
+        @JavascriptInterface
+        fun saveFile(fileName: String, content: String, mimeType: String): Boolean {
             return try {
                 val values = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                    put(MediaStore.Downloads.MIME_TYPE, mimeType)
                     put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                 }
                 val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -144,6 +149,39 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "Export impossible", Toast.LENGTH_LONG).show()
                 }
                 false
+            }
+        }
+
+        @JavascriptInterface
+        fun saveHistoryBackup(jsonContent: String): Boolean {
+            return try {
+                val internalFile = java.io.File(filesDir, "pointage_cfpm_sauvegarde.json")
+                internalFile.writeText(jsonContent, Charsets.UTF_8)
+                val extDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!extDir.exists()) extDir.mkdirs()
+                val extFile = java.io.File(extDir, "pointage_cfpm_sauvegarde_annuelle.json")
+                extFile.writeText(jsonContent, Charsets.UTF_8)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        @JavascriptInterface
+        fun readHistoryBackup(): String {
+            return try {
+                val extDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val extFile = java.io.File(extDir, "pointage_cfpm_sauvegarde_annuelle.json")
+                if (extFile.exists() && extFile.length() > 0) {
+                    extFile.readText(Charsets.UTF_8)
+                } else {
+                    val internalFile = java.io.File(filesDir, "pointage_cfpm_sauvegarde.json")
+                    if (internalFile.exists() && internalFile.length() > 0) {
+                        internalFile.readText(Charsets.UTF_8)
+                    } else ""
+                }
+            } catch (e: Exception) {
+                ""
             }
         }
     }

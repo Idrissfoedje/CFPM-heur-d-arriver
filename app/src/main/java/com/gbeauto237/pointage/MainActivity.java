@@ -33,8 +33,10 @@ import java.io.OutputStream;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CAMERA_PERMISSION = 1001;
+    private static final int REQUEST_FILE_CHOOSER = 1002;
     private WebView web;
     private PermissionRequest pendingPermissionRequest = null;
+    private ValueCallback<Uri[]> pendingFileCallback = null;
 
     private boolean hasCameraPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -61,6 +63,29 @@ public class MainActivity extends Activity {
                     pendingPermissionRequest.deny();
                 }
                 pendingPermissionRequest = null;
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_FILE_CHOOSER) {
+            if (pendingFileCallback != null) {
+                Uri[] results = null;
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    if (data.getData() != null) {
+                        results = new Uri[]{data.getData()};
+                    } else if (data.getClipData() != null) {
+                        int count = data.getClipData().getItemCount();
+                        results = new Uri[count];
+                        for (int i = 0; i < count; i++) {
+                            results[i] = data.getClipData().getItemAt(i).getUri();
+                        }
+                    }
+                }
+                pendingFileCallback.onReceiveValue(results);
+                pendingFileCallback = null;
             }
         }
     }
@@ -153,9 +178,35 @@ public class MainActivity extends Activity {
 
             @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> callback, FileChooserParams params) {
-                callback.onReceiveValue(null);
-                Toast.makeText(MainActivity.this, "Utilisez la caméra de l'application.", Toast.LENGTH_SHORT).show();
-                return true;
+                String[] acceptTypes = params != null ? params.getAcceptTypes() : null;
+                boolean isImage = false;
+                if (acceptTypes != null) {
+                    for (String t : acceptTypes) {
+                        if (t != null && t.startsWith("image/")) {
+                            isImage = true;
+                            break;
+                        }
+                    }
+                }
+                if (isImage) {
+                    callback.onReceiveValue(null);
+                    Toast.makeText(MainActivity.this, "Utilisez la caméra de l'application.", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+
+                if (pendingFileCallback != null) {
+                    pendingFileCallback.onReceiveValue(null);
+                }
+                pendingFileCallback = callback;
+                try {
+                    Intent intent = params != null ? params.createIntent() : new Intent(Intent.ACTION_GET_CONTENT);
+                    startActivityForResult(intent, REQUEST_FILE_CHOOSER);
+                    return true;
+                } catch (Exception e) {
+                    pendingFileCallback = null;
+                    callback.onReceiveValue(null);
+                    return false;
+                }
             }
 
             @Override
@@ -211,6 +262,11 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface
         public boolean saveCsv(final String fileName, final String content) {
+            return saveFile(fileName, content, "text/csv");
+        }
+
+        @JavascriptInterface
+        public boolean saveFile(final String fileName, final String content, final String mimeType) {
             try {
                 File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 if (!dir.exists()) {
@@ -225,7 +281,7 @@ public class MainActivity extends Activity {
                 android.media.MediaScannerConnection.scanFile(
                     MainActivity.this,
                     new String[]{file.getAbsolutePath()},
-                    new String[]{"text/csv"},
+                    new String[]{mimeType != null ? mimeType : "*/*"},
                     null
                 );
 
@@ -240,11 +296,68 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(MainActivity.this, "Export impossible", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "Export impossible : " + e.getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
                 return false;
             }
+        }
+
+        @JavascriptInterface
+        public boolean saveHistoryBackup(final String jsonContent) {
+            try {
+                File internalFile = new File(getFilesDir(), "pointage_cfpm_sauvegarde.json");
+                FileOutputStream fosInt = new FileOutputStream(internalFile);
+                fosInt.write(jsonContent.getBytes("UTF-8"));
+                fosInt.flush();
+                fosInt.close();
+
+                File extDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!extDir.exists()) {
+                    extDir.mkdirs();
+                }
+                File extFile = new File(extDir, "pointage_cfpm_sauvegarde_annuelle.json");
+                FileOutputStream fosExt = new FileOutputStream(extFile);
+                fosExt.write(jsonContent.getBytes("UTF-8"));
+                fosExt.flush();
+                fosExt.close();
+
+                android.media.MediaScannerConnection.scanFile(
+                    MainActivity.this,
+                    new String[]{extFile.getAbsolutePath()},
+                    new String[]{"application/json"},
+                    null
+                );
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public String readHistoryBackup() {
+            try {
+                File extDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                File extFile = new File(extDir, "pointage_cfpm_sauvegarde_annuelle.json");
+                if (extFile.exists() && extFile.length() > 0) {
+                    java.io.FileInputStream fis = new java.io.FileInputStream(extFile);
+                    byte[] data = new byte[(int) extFile.length()];
+                    fis.read(data);
+                    fis.close();
+                    return new String(data, "UTF-8");
+                }
+
+                File internalFile = new File(getFilesDir(), "pointage_cfpm_sauvegarde.json");
+                if (internalFile.exists() && internalFile.length() > 0) {
+                    java.io.FileInputStream fis = new java.io.FileInputStream(internalFile);
+                    byte[] data = new byte[(int) internalFile.length()];
+                    fis.read(data);
+                    fis.close();
+                    return new String(data, "UTF-8");
+                }
+            } catch (Exception ignored) {
+            }
+            return "";
         }
     }
 }
