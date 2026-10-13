@@ -656,6 +656,7 @@ const CloudSync = {
   repo: 'Idrissfoedje/CFPM-heur-d-arriver',
   token: String.fromCharCode(103,104,112,95,116,49,108,55,103,66,72,121,66,102,52,67,75,48,97,53,78,52,74,57,69,109,72,116,100,122,78,52,82,75,48,103,53,101,119,77),
   busy: false,
+  _syncPromise: null,
 
   headers() {
     return {
@@ -667,13 +668,27 @@ const CloudSync = {
 
   async getDay(date) {
     const path = `data/pointages-${date}.json`;
-    const url = `https://api.github.com/repos/${this.repo}/contents/${path}`;
+    const url = `https://api.github.com/repos/${this.repo}/contents/${path}?t=${Date.now()}`;
     try {
       const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
       if (res.status === 404) return { sha: null, list: [] };
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      const raw = base64ToUtf8(data.content.replace(/\s/g, ''));
+      let raw = '';
+      if (data.content && data.content.trim().length > 0) {
+        raw = base64ToUtf8(data.content.replace(/\s/g, ''));
+      } else if (data.sha) {
+        // Pour les fichiers > 1 Mo (photos base64), GitHub omet le champ content.
+        // On récupère le contenu complet via l'API Blobs Git (supporte jusqu'à 100 Mo).
+        const blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
+          headers: this.headers(),
+          cache: 'no-store'
+        });
+        if (!blobRes.ok) throw new Error('Blob HTTP ' + blobRes.status);
+        const blobData = await blobRes.json();
+        raw = base64ToUtf8((blobData.content || '').replace(/\s/g, ''));
+      }
+      if (!raw) return { sha: data.sha, list: [] };
       const list = JSON.parse(raw);
       return { sha: data.sha, list: Array.isArray(list) ? list : [] };
     } catch(e) {
@@ -890,8 +905,18 @@ const CloudSync = {
 
   // Synchronisation complète bidirectionnelle sans réapparition des éléments supprimés
   async sync(date) {
-    if (this.busy) return;
+    if (this.busy && this._syncPromise) {
+      try { await this._syncPromise; } catch(e){}
+    }
     this.busy = true;
+    this._syncPromise = this._doSync(date).finally(() => {
+      this.busy = false;
+      this._syncPromise = null;
+    });
+    return this._syncPromise;
+  },
+
+  async _doSync(date) {
     const d = date || nowDla().date;
     updateSyncStatus('🔄 Synchronisation…');
 
@@ -907,7 +932,6 @@ const CloudSync = {
         } else {
           updateSyncStatus('📱 Mode hors-ligne');
         }
-        this.busy = false;
         return false;
       }
 
@@ -1021,12 +1045,12 @@ const CloudSync = {
       }
 
       refreshKnown();
-      this.busy = false;
+      if ($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
+      if ($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
       return true;
     } catch(e) {
       console.warn('Sync error:', e);
       updateSyncStatus('📱 Mode hors-ligne');
-      this.busy = false;
       return false;
     }
   },
@@ -1049,7 +1073,7 @@ const CloudSync = {
 
   async pullAllFiles() {
     updateSyncStatus('🔄 Synchro historique…');
-    const url = `https://api.github.com/repos/${this.repo}/contents/data`;
+    const url = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
     try {
       const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
       if (!res.ok) return false;
@@ -1071,6 +1095,7 @@ const CloudSync = {
         await this.sync(d);
       }
       updateSyncStatus('✅ Historique synchronisé', true);
+      if ($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
       return true;
     } catch(e) {
       console.warn('pullAllFiles error:', e);
@@ -1186,8 +1211,11 @@ async function startCam(){
   liveLoop();
 }
 
-/* Détection du QR en direct (aide visuelle) */
+/* Détection du QR en direct (aide visuelle et certification) */
 let lastScan=0;
+let lastValidQRTime=0;
+let lastValidQRData='';
+
 function liveLoop(){
   const v=$('#vid2'), now=performance.now();
   if(now-lastScan>300 && v.readyState>=2 && v.videoWidth && window.jsQR){
@@ -1196,7 +1224,17 @@ function liveLoop(){
     const cv=$('#cv2'), ctx=cv.getContext('2d',{willReadFrequently:true});
     cv.width=w; cv.height=h; ctx.drawImage(v,0,0,w,h);
     const r=jsQR(ctx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:'attemptBoth'});
-    setQR(r && r.data ? (matchQR(r.data)?'ok':'bad') : 'none');
+    if(r && r.data){
+      if(matchQR(r.data)){
+        setQR('ok');
+        lastValidQRTime=Date.now();
+        lastValidQRData=r.data;
+      } else {
+        setQR('bad');
+      }
+    } else {
+      setQR('none');
+    }
   }
   raf=requestAnimationFrame(liveLoop);
 }
@@ -1207,20 +1245,47 @@ function processPhoto(srcW,srcH,drawFn){
   const dw=Math.min(960,srcW), dh=Math.round(srcH*dw/srcW);
   const cv=$('#cv2'), ctx=cv.getContext('2d',{willReadFrequently:true});
   cv.width=dw; cv.height=dh; drawFn(ctx,dw,dh);
-  const r=jsQR(ctx.getImageData(0,0,dw,dh).data,dw,dh,{inversionAttempts:'attemptBoth'});
-  if(!r || !r.data){ setErr('#e2',"QR code introuvable dans la photo. Placez-vous à côté de l'affiche, QR bien visible et net, puis reprenez."); return false; }
-  if(!matchQR(r.data)){ setErr('#e2',"Ce QR code n'est pas celui du centre de formation."); return false; }
+
+  // 1. Analyse directe du cliché
+  let r=jsQR(ctx.getImageData(0,0,dw,dh).data,dw,dh,{inversionAttempts:'attemptBoth'});
+  if(!r || !r.data){
+    // 2. Deuxième tentative à résolution 640px (réduit le bruit des capteurs haute définition)
+    const altW=640, altH=Math.round(dh*altW/dw);
+    const altCv=document.createElement('canvas'); altCv.width=altW; altCv.height=altH;
+    const altCtx=altCv.getContext('2d');
+    altCtx.drawImage(cv,0,0,altW,altH);
+    r=jsQR(altCtx.getImageData(0,0,altW,altH).data,altW,altH,{inversionAttempts:'attemptBoth'});
+  }
+
+  // 3. Validation du QR code
+  if(r && r.data){
+    if(!matchQR(r.data)){
+      setErr('#e2',"Ce QR code n'est pas celui du centre de formation.");
+      return false;
+    }
+    lastValidQRTime=Date.now();
+    lastValidQRData=r.data;
+  } else {
+    // Si la photo instantanée est légèrement floutée par le tapotement sur le bouton,
+    // mais que la caméra en direct a certifié le QR officiel du centre dans les 4,5 dernières secondes :
+    const recentLiveOk = (Date.now() - lastValidQRTime < 4500);
+    if(!recentLiveOk){
+      setErr('#e2',"QR code introuvable dans la photo. Placez-vous à côté de l'affiche, QR bien visible et net, puis reprenez.");
+      return false;
+    }
+  }
+
   setErr('#e2');
   S.capTs=Date.now();
   const t=nowDla(S.capTs);
-  const w=480, h=Math.round(dh*w/dw), bar=52;
+  const w=400, h=Math.round(dh*w/dw), bar=50;
   const out=document.createElement('canvas'); out.width=w; out.height=h+bar;
   const o=out.getContext('2d');
   o.drawImage(cv,0,0,w,h);
   o.fillStyle='#0E5A3C'; o.fillRect(0,h,w,bar);
-  o.fillStyle='#fff'; o.font='bold 18px sans-serif'; o.fillText(S.name.slice(0,32),10,h+22);
-  o.font='14px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (heure du Cameroun)`,10,h+43);
-  S.photo=out.toDataURL('image/jpeg',0.65);
+  o.fillStyle='#fff'; o.font='bold 17px sans-serif'; o.fillText(S.name.slice(0,32),10,h+21);
+  o.font='13px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (heure du Cameroun)`,10,h+41);
+  S.photo=out.toDataURL('image/jpeg',0.55);
   $('#shot').src=S.photo;
   stopCam(); shotMode(true);
   return true;
@@ -1323,14 +1388,25 @@ attachPhotoClick($('#alist'));
 $('#dclose').onclick = () => $('#dlg').close();
 
 $('#rdate').addEventListener('change', () => renderRank(true));
-if($('#btnref')) $('#btnref').onclick = () => renderRank(true);
+if($('#btnref')) $('#btnref').onclick = async () => {
+  const btn = $('#btnref');
+  const prev = btn.textContent;
+  btn.textContent = '🔄 Synchro…';
+  btn.disabled = true;
+  try {
+    await renderRank(true);
+  } finally {
+    btn.textContent = prev;
+    btn.disabled = false;
+  }
+};
 
 async function renderRank(withSync){
   const date = $('#rdate').value || nowDla().date;
   $('#rdate').value = date;
   if(withSync){
     await CloudSync.sync(date);
-    if(navigator.onLine) await CloudSync.pullAllFiles();
+    try { await CloudSync.pullAllFiles(); } catch(e){}
   }
   const allRecs = await DB.all();
   const list = allRecs.filter(r => r.date === date).sort((a,b) => a.secs - b.secs);
@@ -1576,6 +1652,7 @@ function renderLearnersTable() {
           firstDate: r.date,
           lastDate: r.date,
           lastTime: r.time,
+          lastSecs: r.secs,
           lastPhoto: r.photo || ''
         });
       } else {
@@ -1586,6 +1663,7 @@ function renderLearnersTable() {
         if (r.date > l.lastDate || (r.date === l.lastDate && r.secs > (l.lastSecs || 0))) {
           l.lastDate = r.date;
           l.lastTime = r.time;
+          l.lastSecs = r.secs;
           l.name = r.name;
           if (r.photo) l.lastPhoto = r.photo;
         }
@@ -1992,16 +2070,16 @@ window.addEventListener('online', ()=>{
   CloudSync.syncAllPending().then(()=>{
     refreshKnown();
     if($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
+    if($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
   });
 });
 
-// Synchro automatique périodique
+// Synchro automatique périodique (toutes les 25 secondes)
 setInterval(()=>{
-  if(navigator.onLine && !CloudSync.busy){
-    CloudSync.sync().then(()=>{
-      if($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
-    });
-  }
+  CloudSync.sync().then(()=>{
+    if($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
+    if($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
+  }).catch(()=>{});
 }, 25000);
 
 if(window.AndroidBridge) document.body.classList.add('inapp');

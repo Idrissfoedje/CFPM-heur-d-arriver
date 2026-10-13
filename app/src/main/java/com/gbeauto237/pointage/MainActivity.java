@@ -268,6 +268,41 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean saveFile(final String fileName, final String content, final String mimeType) {
             try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    try {
+                        Class<?> mediaColumnsClass = Class.forName("android.provider.MediaStore$MediaColumns");
+                        java.lang.reflect.Field relPathField = mediaColumnsClass.getField("RELATIVE_PATH");
+                        String relPath = (String) relPathField.get(null);
+
+                        Class<?> downloadsClass = Class.forName("android.provider.MediaStore$Downloads");
+                        java.lang.reflect.Field uriField = downloadsClass.getField("EXTERNAL_CONTENT_URI");
+                        Uri extUri = (Uri) uriField.get(null);
+
+                        ContentValues values = new ContentValues();
+                        values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                        values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType != null ? mimeType : "text/csv");
+                        values.put(relPath, Environment.DIRECTORY_DOWNLOADS);
+
+                        Uri uri = getContentResolver().insert(extUri, values);
+                        if (uri != null) {
+                            OutputStream os = getContentResolver().openOutputStream(uri);
+                            if (os != null) {
+                                os.write(content.getBytes("UTF-8"));
+                                os.flush();
+                                os.close();
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Toast.makeText(MainActivity.this, "Exporté dans Téléchargements : " + fileName, Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                                return true;
+                            }
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+
                 File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 if (!dir.exists()) {
                     dir.mkdirs();
@@ -292,7 +327,7 @@ public class MainActivity extends Activity {
                     }
                 });
                 return true;
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {

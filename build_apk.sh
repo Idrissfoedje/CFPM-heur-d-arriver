@@ -45,6 +45,7 @@ cat << 'EOF' > "$BUILD_DIR/AndroidManifest.xml"
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
@@ -64,6 +65,7 @@ cat << 'EOF' > "$BUILD_DIR/AndroidManifest.xml"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/Theme.Pointage"
+        android:requestLegacyExternalStorage="true"
         android:resizeableActivity="true"
         android:hardwareAccelerated="true">
 
