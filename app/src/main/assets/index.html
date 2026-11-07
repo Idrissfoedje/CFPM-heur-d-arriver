@@ -166,37 +166,48 @@ body.step-camera .cam{
 
 /* Listes */
 ul.list{list-style:none;margin:0;padding:0}
-.row{display:grid;grid-template-columns:38px 46px 1fr auto;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--green);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.row{display:grid;grid-template-columns:30px 42px minmax(0,1fr) auto;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:10px;padding:8px 10px;margin-bottom:8px}
 .row.late{border-left-color:var(--red)}
-.rk{font-family:var(--head);font-weight:700;font-size:1.6rem;text-align:center}
+.rk{font-family:var(--head);font-weight:700;font-size:1.4rem;text-align:center}
 .row:nth-child(1) .rk{color:var(--gold)}
-.row img{width:46px;height:46px;border-radius:8px;object-fit:cover;background:#ddd;cursor:pointer}
-.nm{font-weight:600;word-break:break-word}
-.tm{font-family:var(--head);font-weight:700;font-size:1.3rem;text-align:right;line-height:1.1}
-.tag{display:block;font-family:var(--body);font-size:.75rem;font-weight:600;color:var(--green)}
+.row img{width:42px;height:42px;border-radius:8px;object-fit:cover;background:#ddd;cursor:pointer;flex-shrink:0}
+.nm{font-weight:600;min-width:0;overflow-wrap:break-word;word-break:break-word;font-size:0.95rem;line-height:1.25}
+.tm{font-family:var(--head);font-weight:700;font-size:1.25rem;text-align:right;line-height:1.1;flex-shrink:0;min-width:62px;white-space:nowrap}
+.tag{display:block;font-family:var(--body);font-size:.72rem;font-weight:600;color:var(--green);white-space:nowrap}
+.tag.late{color:var(--red)}
 .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
-.sum div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:transform .1s,box-shadow .1s}
+@media (max-width:380px){.sum{grid-template-columns:repeat(2,1fr);gap:6px}}
+.sum div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:transform .1s,box-shadow .1s;min-width:0;overflow:hidden}
 .sum div:active{transform:scale(0.97)}
-.sum b{font-family:var(--head);font-size:1.55rem;display:block;line-height:1}
+.sum b{font-family:var(--head);font-size:1.45rem;display:block;line-height:1.05}
+.sum span{font-size:0.75rem;font-weight:600;display:block;line-height:1.2;margin-top:2px}
 .sum .l b{color:var(--red)} .sum .o b{color:var(--green)} .sum .a b{color:var(--red)}
 .sum .a{border-left:3px solid var(--red)}
 
-.filter-tabs{display:flex;gap:8px;margin:10px 0 12px}
+.date-bar{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.date-bar input[type=date]{flex:1;padding:10px 8px;font-size:1rem}
+.btn-date-nav{background:#fff;border:2px solid var(--line);border-radius:8px;padding:10px 12px;font-size:1rem;cursor:pointer;line-height:1}
+.btn-date-nav:active{background:#eee}
+.quick-date-row{display:flex;gap:6px;margin-bottom:10px}
+.btn-quick-date{flex:1;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:0.8rem;font-weight:600;color:var(--muted);cursor:pointer;text-align:center}
+.btn-quick-date:active{background:var(--green-soft);color:var(--green)}
+
+.filter-tabs{display:flex;gap:8px;margin:8px 0 10px}
 .ftab{flex:1;border:2px solid var(--line);background:var(--card);color:var(--muted);padding:9px 8px;border-radius:8px;font-family:var(--head);font-weight:700;font-size:.95rem;cursor:pointer;text-align:center;transition:all .2s}
 .ftab.on{background:var(--green);color:#fff;border-color:var(--green)}
 .ftab.on.ftab-abs{background:var(--red);border-color:var(--red)}
 
 .row.row-absent{border-left-color:var(--red);background:#fff9f9}
-.rk-absent{font-family:var(--head);font-weight:700;font-size:1.4rem;text-align:center;color:var(--red)}
-.tag.tag-absent{color:var(--muted);font-size:.75rem}
-.flag.flag-absent{background:var(--red);color:#fff;border-radius:6px;padding:3px 8px;font-size:.8rem;font-weight:700;display:inline-block}
+.rk-absent{font-family:var(--head);font-weight:700;font-size:1.35rem;text-align:center;color:var(--red)}
+.tag.tag-absent{color:var(--muted);font-size:.72rem;font-weight:500;white-space:nowrap}
+.flag.flag-absent{background:var(--red);color:#fff;border-radius:6px;padding:2px 6px;font-size:.75rem;font-weight:700;display:inline-block}
 
-table{width:100%;border-collapse:collapse;font-size:.92rem}
-th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
-th{font-weight:600;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-weight:600;color:var(--muted);white-space:nowrap}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
-.flag{background:var(--red);color:#fff;border-radius:6px;padding:2px 7px;font-size:.78rem;font-weight:600;white-space:nowrap}
-.scroll{overflow-x:auto}
+.flag{background:var(--red);color:#fff;border-radius:6px;padding:2px 6px;font-size:.75rem;font-weight:600;white-space:nowrap}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid var(--line);margin-top:6px}
 
 nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
 nav button{flex:1;border:0;background:none;padding:14px 4px;font-family:var(--head);font-weight:700;font-size:1.15rem;color:var(--muted);border-top:4px solid transparent;cursor:pointer}
@@ -258,17 +269,88 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .hist-item.late{background:#FFF9F9;color:var(--red)}
 
 /* Dialogues et Modales */
-dialog.app-dialog{border:0;border-radius:14px;padding:18px;max-width:94vw;width:440px;background:#fff;box-shadow:0 12px 36px rgba(0,0,0,0.35);box-sizing:border-box}
+dialog.app-dialog{border:0;border-radius:14px;padding:16px;max-width:94vw;width:440px;max-height:85vh;overflow-y:auto;background:#fff;box-shadow:0 12px 36px rgba(0,0,0,0.35);box-sizing:border-box;margin:auto}
 dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
 .dlg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
-.dlg-head h3{margin:0;font-size:1.25rem;color:var(--ink)}
+.dlg-head h3{margin:0;font-size:1.2rem;color:var(--ink)}
 .dlg-x{border:0;background:#EFEFEF;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;cursor:pointer;color:var(--ink);line-height:1}
-.badge-status{display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.75rem;font-weight:700}
+.badge-status{display:inline-block;padding:2px 7px;border-radius:6px;font-size:0.74rem;font-weight:700}
 .badge-status.ok{background:var(--green-soft);color:var(--green)}
 .badge-status.late{background:var(--red-soft);color:var(--red)}
-.filter-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-.filter-row input,.filter-row select{padding:9px 10px;font-size:0.92rem}
+.filter-row{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.filter-row input,.filter-row select{padding:8px 10px;font-size:0.9rem}
 .manage-actions{display:flex;gap:6px;align-items:center}
+
+/* Sélecteur d'Apprenants Ergonomique (Step 1) */
+.learner-search-box{position:relative;margin:8px 0 10px}
+.learner-search-box input{padding-left:36px;font-size:0.95rem;padding-top:10px;padding-bottom:10px}
+.learner-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:1rem;color:var(--muted);pointer-events:none}
+.learners-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+  gap:8px;max-height:46vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;padding:2px;margin-bottom:10px;
+}
+@media (max-width:360px){
+  .learners-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+}
+.learner-card{
+  background:#fff;border:2px solid var(--line);border-radius:10px;
+  padding:8px 6px;text-align:center;cursor:pointer;
+  transition:all .15s ease;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;position:relative;
+  min-height:85px;user-select:none;
+}
+.learner-card:active{transform:scale(0.97)}
+.learner-card.selected{
+  border-color:var(--green);background:var(--green-soft);
+  box-shadow:0 0 0 2px var(--green);
+}
+.learner-card.already-done{
+  opacity:0.65;background:#f5f5f5;border-color:#ddd;
+}
+.learner-card img{
+  width:42px;height:42px;border-radius:50%;object-fit:cover;
+  margin-bottom:4px;background:#eaeaea;border:2px solid #fff;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+}
+.learner-card-name{
+  font-weight:700;font-size:0.82rem;line-height:1.2;color:var(--ink);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.learner-card-badge{
+  font-size:0.68rem;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:4px;
+}
+.learner-card-badge.done{background:#e0f2e9;color:var(--green)}
+.learner-card-badge.waiting{color:var(--muted)}
+.selected-confirm-bar{
+  background:#fff;border:2px solid var(--green);border-radius:12px;
+  padding:12px;margin-top:8px;text-align:center;
+  box-shadow:0 4px 12px rgba(14,90,60,0.15);
+  animation:popIn 0.2s ease-out;
+}
+@keyframes popIn{
+  from{transform:scale(0.96);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
+.selected-confirm-name{
+  font-family:var(--head);font-size:1.25rem;font-weight:700;
+  color:var(--green);margin-bottom:8px;
+}
+.btn-confirm-learner{
+  background:var(--green);color:#fff;border:0;border-radius:10px;
+  padding:12px 14px;font-size:1.02rem;font-weight:700;width:100%;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-new-learner-toggle{
+  background:none;border:1px dashed var(--muted);border-radius:8px;
+  color:var(--muted);padding:8px 10px;font-size:0.85rem;font-weight:600;
+  width:100%;cursor:pointer;margin-top:8px;
+}
+.new-learner-box{
+  background:#f9fbf9;border:1px solid var(--line);border-radius:10px;
+  padding:10px;margin-top:8px;
+}
 </style>
 </head>
 <body>
@@ -291,21 +373,45 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
 <main>
   <!-- ===== POINTER ===== -->
   <section id="v-pointer">
-    <div class="steps" id="steps"><div data-s="1">1 Nom</div><div data-s="2">2 Photo avec le QR code</div></div>
+    <div class="steps" id="steps"><div data-s="1">1 Choisir son nom</div><div data-s="2">2 Photo avec le QR code</div></div>
 
     <div id="p1" class="card">
       <h2>Qui arrive ?</h2>
-      <p class="hint" style="margin-bottom:12px">Écrivez votre nom complet, toujours de la même façon.</p>
-      <label for="name">Nom et prénom</label>
-      <input id="name" type="text" autocomplete="off" autocapitalize="words" list="known" placeholder="Ex. : Mbarga Jean">
-      <datalist id="known"></datalist>
+      <p class="hint">Touchez votre nom dans la liste pour valider votre arrivée.</p>
+      
+      <div class="learner-search-box">
+        <span class="learner-search-icon">🔍</span>
+        <input id="learner-filter" type="text" placeholder="Filtrer (ex: Mbarga, Epoma, Franklin…)" autocomplete="off">
+      </div>
+
+      <div id="learners-grid" class="learners-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--muted)">Chargement de l'effectif…</div>
+      </div>
+
+      <div id="learner-selected-box" class="selected-confirm-bar hidden">
+        <div style="font-size:0.8rem;color:var(--muted);font-weight:600">Apprenant sélectionné :</div>
+        <div id="selected-name-display" class="selected-confirm-name"></div>
+        <button class="btn-confirm-learner" id="btn-confirm-learner" type="button">
+          📸 Valider et passer à la photo avec QR code ➔
+        </button>
+      </div>
+
       <div class="err" id="e1"></div>
-      <button class="btn" id="b1">Continuer</button>
+
+      <button class="btn-new-learner-toggle" id="btn-toggle-new-learner" type="button">
+        ➕ Mon nom n'est pas dans la liste (Nouvel apprenant)
+      </button>
+      
+      <div id="new-learner-box" class="new-learner-box hidden">
+        <label for="new-learner-name" style="font-size:0.88rem">Nom et prénom complet du nouvel apprenant</label>
+        <input id="new-learner-name" type="text" autocomplete="off" autocapitalize="words" placeholder="Ex. : Mbarga Jean">
+        <button class="btn sm" id="btn-add-and-select" type="button" style="margin-top:8px">Valider et continuer</button>
+      </div>
     </div>
 
     <div id="p2" class="card hidden">
       <h2>Photo avec le QR code</h2>
-      <p class="hint">Placez-vous face à la caméra avec le QR code du centre visible à côté de vous.</p>
+      <p class="hint" id="p2-hint">Placez-vous face à la caméra avec le QR code du centre visible à côté de vous.</p>
       <div class="cam">
         <video id="vid2" class="front" playsinline webkit-playsinline muted autoplay></video>
         <img id="shot" class="hidden" alt="Votre photo">
@@ -319,7 +425,7 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
       <div class="cam-btn-row">
         <button class="btn alt sm" id="flip">🔄 Changer caméra</button>
         <button class="btn alt sm hidden" id="retake">🔄 Reprendre</button>
-        <button class="btn alt sm" id="back2">← Changer nom</button>
+        <button class="btn alt sm" id="back2">← Changer apprenant</button>
       </div>
       <button class="btn alt sm" id="selfiefile" style="margin-top:6px">La caméra ne démarre pas : photo avec l'appareil</button>
       <input id="sfile" type="file" accept="image/*" capture="user" class="hidden">
@@ -334,8 +440,18 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
       <h2>Pointages et Absences</h2>
       <button id="btnref" class="btn sm alt" style="margin:0; padding:6px 12px; font-size:0.85rem; font-weight:600;">🔄 Actualiser</button>
     </div>
-    <p class="hint" style="margin-bottom:10px">Pointages et absences du jour. Les données sont partagées entre tous les téléphones.</p>
-    <input id="rdate" type="date" aria-label="Choisir la date">
+    <p class="hint" style="margin-bottom:8px">Pointages et absences du jour partagés entre tous les téléphones.</p>
+    
+    <div class="date-bar">
+      <button class="btn-date-nav" id="btn-prev-day" type="button" title="Jour précédent">◀️</button>
+      <input id="rdate" type="date" aria-label="Choisir la date">
+      <button class="btn-date-nav" id="btn-next-day" type="button" title="Jour suivant">▶️</button>
+    </div>
+    <div class="quick-date-row">
+      <button class="btn-quick-date" id="btn-today" type="button">📅 Aujourd'hui</button>
+      <button class="btn-quick-date" id="btn-last-active" type="button">⭐ Dernier jour pointé</button>
+    </div>
+
     <div class="sum" id="rsum"></div>
     <div class="filter-tabs">
       <button id="tab-pres" class="ftab on" type="button">🟢 Présents (<span id="cpres">0</span>)</button>
@@ -356,10 +472,11 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
       <button class="btn" id="unlock">Ouvrir</button>
     </div>
     <div id="panel" class="hidden">
-      <h2>Discipline</h2>
+      <h2>Discipline & Analyses</h2>
       <label for="period" style="margin-top:12px">Période analysée</label>
       <select id="period">
-        <option value="7">7 derniers jours</option>
+        <option value="7">7 derniers jours (Semaine)</option>
+        <option value="14">14 derniers jours</option>
         <option value="30" selected>30 derniers jours</option>
         <option value="90">90 derniers jours</option>
         <option value="0">Depuis le début</option>
@@ -381,6 +498,7 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
       </div>
       <button class="btn" id="csv">Exporter l'historique en CSV (Excel)</button>
       <button class="btn alt" id="csv-day">Exporter la journée avec absents (CSV)</button>
+
       <!-- Section Gestion des Apprenants -->
       <div class="card" style="margin-top:14px">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -398,8 +516,47 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
         </div>
       </div>
 
+      <!-- Section Optimisation Stockage & Nettoyage Photos -->
+      <div class="card" style="margin-top:14px">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 style="margin:0">📦 Optimisation Stockage & Photos</h3>
+            <p class="hint" style="margin:2px 0 0">Libère l'espace pour éviter les ralentissements et bugs de mémoire.</p>
+          </div>
+        </div>
+        <div id="storage-stats-box" style="background:#F5F7F4; border-radius:8px; padding:10px 12px; margin-top:10px; font-size:0.88rem;">
+          Calcul de l'espace occupé…
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <button class="btn sm" id="btn-clean-old-photos" type="button" style="flex:1; min-width:160px; margin:0;">
+            🧹 Nettoyer photos &gt; 14 jours
+          </button>
+          <button class="btn sm alt" id="btn-sync-all-history" type="button" style="flex:1; min-width:160px; margin:0;">
+            🔄 Synchro tout l'historique Cloud
+          </button>
+        </div>
+        <p class="hint" style="font-size:0.8rem; margin-top:6px;">
+          💡 Le nettoyage conserve 100% de l'historique : noms, dates, heures exactes et présences restent intacts, seules les anciennes photos volumineuses sont allégées.
+        </p>
+      </div>
+
+      <!-- Section Configuration Token GitHub -->
+      <div class="card" style="margin-top:14px">
+        <h3>☁️ Synchronisation Cloud (GitHub)</h3>
+        <p class="hint" style="margin:4px 0 8px;">
+          Si le jeton d'accès GitHub a expiré, mettez-le à jour ici directement sans réinstaller l'application.
+        </p>
+        <label for="cfg-github-token" style="font-size:0.88rem;">Jeton d'accès GitHub (Token PAT)</label>
+        <input type="password" id="cfg-github-token" placeholder="ghp_... ou github_pat_..." style="font-size:0.9rem; padding:8px 10px;">
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn sm" id="btn-save-github-token" type="button" style="margin:0; width:auto;">💾 Enregistrer le jeton</button>
+          <button class="btn sm alt" id="btn-test-github-token" type="button" style="margin:0; width:auto;">🧪 Tester la connexion</button>
+        </div>
+        <div id="token-test-result" style="font-size:0.85rem; margin-top:6px; font-weight:600;"></div>
+      </div>
+
       <!-- Section Correction et suppression des pointages -->
-      <button class="btn alt" id="manage">✏️ Corriger ou supprimer un pointage</button>
+      <button class="btn alt" id="manage" style="margin-top:14px">✏️ Corriger ou supprimer un pointage</button>
       <div id="mlist" class="card hidden" style="margin-top:12px">
         <h3>Correction & suppression des pointages</h3>
         <p class="hint" style="margin:4px 0 10px">Recherchez un pointage pour modifier l'heure, le statut, le nom ou le supprimer définitivement.</p>
@@ -513,20 +670,21 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
 </dialog>
 
 <script>
-/* ============ RÉGLAGES (à modifier ici) ============ */
+/* ============ RÉGLAGES DE BASE ============ */
 const CONFIG = {
   QR_MATCH: '776f5514',                 // identifiant contenu dans le QR du centre (https://myqrcode.mobi/776f5514)
   TZ: 'Africa/Douala',                  // heure du Cameroun (UTC+1)
   DEADLINE_SECS: 8 * 3600,              // 08:00:00 ; après = retardataire
-  ADMIN_PIN: '2370',                    // CHANGEZ CE CODE
+  ADMIN_PIN: '2370',                    // code d'accès direction
   DISCIPLINE_THRESHOLD: 3,              // nb de retards (sur la période) avant convocation
-  PHOTO_TO_VALIDATE_MAX_MS: 5 * 60 * 1000  // la photo doit être validée dans les 5 min
+  PHOTO_TO_VALIDATE_MAX_MS: 5 * 60 * 1000, // délai max pour valider la photo
+  DEFAULT_TOKEN: String.fromCharCode(103,104,112,95,116,49,108,55,103,66,72,121,66,102,52,67,75,48,97,53,78,52,74,57,69,109,72,116,100,122,78,52,82,75,48,103,53,101,119,77)
 };
 
 /* ============ Utilitaires ============ */
 const $ = s => document.querySelector(s);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const key = n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const key = n => String(n ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const pad = n => String(n).padStart(2,'0');
 const fmtDla = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 function nowDla(ts){
@@ -534,7 +692,8 @@ function nowDla(ts){
   return {date:`${p.year}-${p.month}-${p.day}`, time:`${p.hour}:${p.minute}:${p.second}`, secs:(+p.hour)*3600+(+p.minute)*60+(+p.second)};
 }
 const hm = secs => `${pad(Math.floor(secs/3600))}:${pad(Math.floor(secs%3600/60))}`;
-const frDate = d => { const [y,m,j]=d.split('-'); return `${j}/${m}/${y}`; };
+const frDate = d => { if(!d || !d.includes('-')) return d||''; const [y,m,j]=d.split('-'); return `${j}/${m}/${y}`; };
+function cutoffDate(days){ return days>0 ? nowDla(Date.now()-days*86400000).date : '0000-00-00'; }
 
 /* ============ Stockage local (IndexedDB, repli mémoire) ============ */
 const DB = {
@@ -651,26 +810,142 @@ const CustomLearners = {
   }
 };
 
-/* ============ Synchronisation Cloud GitHub (Bidirectionnelle Hors-ligne/En-ligne) ============ */
+/* ============ Gestionnaire et Nettoyeur Automatique de Photos ============ */
+const PhotoStorageManager = {
+  async getUsage() {
+    const all = await DB.all();
+    let totalPhotos = 0;
+    let photoBytes = 0;
+    for (const r of all) {
+      if (r.photo && r.photo.length > 500) {
+        totalPhotos++;
+        photoBytes += r.photo.length;
+      }
+    }
+    const approxMB = (photoBytes / (1024 * 1024)).toFixed(2);
+    return {
+      totalRecords: all.length,
+      totalPhotos,
+      approxMB,
+      photoBytes
+    };
+  },
+
+  async cleanOldPhotos(maxDays = 14) {
+    const all = await DB.all();
+    const cut = cutoffDate(maxDays);
+    
+    const latestDatePerLearner = new Map();
+    for (const r of all) {
+      const k = key(r.name);
+      if (!latestDatePerLearner.has(k) || r.date > latestDatePerLearner.get(k)) {
+        latestDatePerLearner.set(k, r.date);
+      }
+    }
+
+    let cleanedCount = 0;
+    let freedBytes = 0;
+
+    for (const r of all) {
+      if (r.date < cut && r.photo && r.photo.length > 500) {
+        const isLatestPhoto = latestDatePerLearner.get(key(r.name)) === r.date;
+        if (!isLatestPhoto) {
+          freedBytes += r.photo.length;
+          cleanedCount++;
+          await DB.put({
+            ...r,
+            photo: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%230E5A3C'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>",
+            photoPurged: true
+          });
+        }
+      }
+    }
+
+    const freedMB = (freedBytes / (1024 * 1024)).toFixed(2);
+    return { cleanedCount, freedMB };
+  },
+
+  async checkAndAutoClean() {
+    try {
+      const usage = await this.getUsage();
+      if (usage.photoBytes > 15 * 1024 * 1024) {
+        console.log(`[Storage] Nettoyage préventif automatique (${usage.approxMB} Mo)...`);
+        await this.cleanOldPhotos(14);
+      }
+    } catch(e) {
+      console.warn('checkAndAutoClean error:', e);
+    }
+  }
+};
+
+/* ============ Synchronisation Cloud GitHub Résiliente ============ */
 const CloudSync = {
   repo: 'Idrissfoedje/CFPM-heur-d-arriver',
-  token: String.fromCharCode(103,104,112,95,116,49,108,55,103,66,72,121,66,102,52,67,75,48,97,53,78,52,74,57,69,109,72,116,100,122,78,52,82,75,48,103,53,101,119,77),
   busy: false,
   _syncPromise: null,
 
-  headers() {
-    return {
-      'Authorization': 'token ' + this.token,
+  getToken() {
+    const stored = localStorage.getItem('cfpm_github_token');
+    if (stored && stored.trim().length > 10) return stored.trim();
+    return CONFIG.DEFAULT_TOKEN;
+  },
+
+  headers(withAuth = true) {
+    const h = {
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     };
+    if (withAuth) {
+      const tok = this.getToken();
+      if (tok) h['Authorization'] = 'token ' + tok;
+    }
+    return h;
+  },
+
+  async testConnection() {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${this.repo}`, {
+        headers: this.headers(true)
+      });
+      if (!res.ok) return { ok: false, error: 'HTTP ' + res.status };
+      const data = await res.json();
+      const limit = res.headers.get('x-ratelimit-limit') || '?';
+      const remaining = res.headers.get('x-ratelimit-remaining') || '?';
+      return { ok: true, limit, remaining, full_name: data.full_name };
+    } catch(e) {
+      return { ok: false, error: e.message };
+    }
   },
 
   async getDay(date) {
     const path = `data/pointages-${date}.json`;
+    const rawUrl = `https://raw.githubusercontent.com/${this.repo}/main/${path}?t=${Date.now()}`;
+    try {
+      const rawRes = await fetch(rawUrl, { cache: 'no-store' });
+      if (rawRes.ok) {
+        const list = await rawRes.json();
+        let sha = null;
+        try {
+          const infoRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/${path}`, {
+            headers: this.headers(false)
+          });
+          if (infoRes.ok) {
+            const info = await infoRes.json();
+            sha = info.sha;
+          }
+        } catch(ignored) {}
+        return { sha, list: Array.isArray(list) ? list : [] };
+      }
+    } catch(e) {
+      console.warn('Raw fetch error:', e);
+    }
+
     const url = `https://api.github.com/repos/${this.repo}/contents/${path}?t=${Date.now()}`;
     try {
-      const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
+      let res = await fetch(url, { headers: this.headers(true), cache: 'no-store' });
+      if (res.status === 401) {
+        res = await fetch(url, { headers: this.headers(false), cache: 'no-store' });
+      }
       if (res.status === 404) return { sha: null, list: [] };
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
@@ -678,12 +953,16 @@ const CloudSync = {
       if (data.content && data.content.trim().length > 0) {
         raw = base64ToUtf8(data.content.replace(/\s/g, ''));
       } else if (data.sha) {
-        // Pour les fichiers > 1 Mo (photos base64), GitHub omet le champ content.
-        // On récupère le contenu complet via l'API Blobs Git (supporte jusqu'à 100 Mo).
-        const blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
-          headers: this.headers(),
+        let blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
+          headers: this.headers(true),
           cache: 'no-store'
         });
+        if (blobRes.status === 401) {
+          blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
+            headers: this.headers(false),
+            cache: 'no-store'
+          });
+        }
         if (!blobRes.ok) throw new Error('Blob HTTP ' + blobRes.status);
         const blobData = await blobRes.json();
         raw = base64ToUtf8((blobData.content || '').replace(/\s/g, ''));
@@ -981,11 +1260,10 @@ const CloudSync = {
         let currentSha = remote.sha;
 
         if (mergedList.length === 0) {
-          // Aucun pointage restant pour cette journée : supprimer le fichier distant
           if (currentSha) {
             await fetch(`https://api.github.com/repos/${this.repo}/contents/data/pointages-${d}.json`, {
               method: 'DELETE',
-              headers: this.headers(),
+              headers: this.headers(true),
               body: JSON.stringify({
                 message: `Suppression journée ${d} (0 pointage)`,
                 sha: currentSha
@@ -1003,7 +1281,7 @@ const CloudSync = {
 
             const putRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/data/pointages-${d}.json`, {
               method: 'PUT',
-              headers: this.headers(),
+              headers: this.headers(true),
               body: JSON.stringify(body)
             });
 
@@ -1018,6 +1296,9 @@ const CloudSync = {
                   if (!Tombstones.has(rr.id)) finalDayMap.set(rr.id, { ...rr, synced: true });
                 }
               }
+            } else if (putRes.status === 401) {
+              updateSyncStatus('⚠️ Jeton Cloud expiré (local OK)', false, true);
+              break;
             } else {
               break;
             }
@@ -1025,12 +1306,10 @@ const CloudSync = {
         }
       }
 
-      // Sauvegarde dans IndexedDB locale :
       for (const r of mergedList) {
         await DB.put({ ...r, synced: true });
       }
 
-      // Nettoyer les tombstones confirmées
       for (const r of remote.list) {
         if (Tombstones.has(r.id)) {
           Tombstones.remove(r.id);
@@ -1044,7 +1323,8 @@ const CloudSync = {
         updateSyncStatus(`✅ Cloud à jour (${mergedList.length} présents)`, true);
       }
 
-      refreshKnown();
+      backupToAndroidDevice();
+      renderLearnerPicker();
       if ($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
       if ($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
       return true;
@@ -1055,7 +1335,44 @@ const CloudSync = {
     }
   },
 
-  // Synchronise tous les jours qui ont des pointages hors-ligne
+  async syncRecentDays(numDays = 14) {
+    updateSyncStatus('🔄 Synchro récente…');
+    const today = nowDla().date;
+    const datesToSync = new Set();
+    datesToSync.add(today);
+
+    for (let i = 1; i <= numDays; i++) {
+      datesToSync.add(cutoffDate(i));
+    }
+
+    try {
+      const filesUrl = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
+      let res = await fetch(filesUrl, { headers: this.headers(true), cache: 'no-store' });
+      if (res.status === 401) {
+        res = await fetch(filesUrl, { headers: this.headers(false), cache: 'no-store' });
+      }
+      if (res.ok) {
+        const files = await res.json();
+        if (Array.isArray(files)) {
+          const cut = cutoffDate(numDays);
+          files.forEach(f => {
+            if (f.name.startsWith('pointages-') && f.name.endsWith('.json')) {
+              const d = f.name.replace('pointages-', '').replace('.json', '');
+              if (d >= cut) datesToSync.add(d);
+            }
+          });
+        }
+      }
+    } catch(e) {
+      console.warn('syncRecentDays file list warning:', e);
+    }
+
+    for (const d of datesToSync) {
+      await this.sync(d);
+    }
+    updateSyncStatus('✅ Synchro terminée', true);
+  },
+
   async syncAllPending() {
     try {
       const allLocal = await DB.all();
@@ -1075,13 +1392,15 @@ const CloudSync = {
     updateSyncStatus('🔄 Synchro historique…');
     const url = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
     try {
-      const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
+      let res = await fetch(url, { headers: this.headers(true), cache: 'no-store' });
+      if (res.status === 401) {
+        res = await fetch(url, { headers: this.headers(false), cache: 'no-store' });
+      }
       if (!res.ok) return false;
       const files = await res.json();
       if (!Array.isArray(files)) return false;
       const jsonFiles = files.filter(f => f.name.startsWith('pointages-') && f.name.endsWith('.json'));
 
-      // Nettoyage local des journées supprimées sur GitHub
       const remoteDates = new Set(jsonFiles.map(f => f.name.replace('pointages-', '').replace('.json', '')));
       const allLocal = await DB.all();
       for (const r of allLocal) {
@@ -1095,6 +1414,7 @@ const CloudSync = {
         await this.sync(d);
       }
       updateSyncStatus('✅ Historique synchronisé', true);
+      backupToAndroidDevice();
       if ($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
       return true;
     } catch(e) {
@@ -1103,6 +1423,41 @@ const CloudSync = {
     }
   }
 };
+
+/* ============ Sauvegarde locale AndroidBridge ============ */
+async function backupToAndroidDevice() {
+  if (window.AndroidBridge && window.AndroidBridge.saveHistoryBackup) {
+    try {
+      const all = await DB.all();
+      const light = all.map(r => ({
+        id: r.id, name: r.name, date: r.date, time: r.time, secs: r.secs, late: r.late, lateMin: r.lateMin, synced: r.synced
+      }));
+      window.AndroidBridge.saveHistoryBackup(JSON.stringify(light));
+    } catch(e) {
+      console.warn('backupToAndroidDevice error:', e);
+    }
+  }
+}
+
+async function restoreFromAndroidDeviceIfEmpty() {
+  if (window.AndroidBridge && window.AndroidBridge.readHistoryBackup) {
+    try {
+      const existing = await DB.all();
+      if (!existing.length) {
+        const backupJson = window.AndroidBridge.readHistoryBackup();
+        if (backupJson && backupJson.trim().length > 10) {
+          const list = JSON.parse(backupJson);
+          if (Array.isArray(list)) {
+            for (const r of list) await DB.put(r);
+            console.log(`[Backup] Restauré ${list.length} pointages.`);
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('restoreFromAndroidDeviceIfEmpty error:', e);
+    }
+  }
+}
 
 /* ============ Horloge ============ */
 function tick(){
@@ -1163,25 +1518,229 @@ function goStep(n){
 }
 const setErr = (sel,msg)=>{ $(sel).textContent = msg||''; };
 
-async function refreshKnown(){
-  const names=new Map();
-  (await DB.all()).forEach(r=>names.set(key(r.name),r.name));
-  CustomLearners.get().forEach(n=>{ if(!names.has(key(n))) names.set(key(n),n); });
-  $('#known').innerHTML=[...names.values()].sort().map(n=>`<option value="${esc(n)}">`).join('');
+/* ============ Sélecteur visuel d'apprenants (Sans saisie manuelle) ============ */
+let selectedLearner = null;
+
+async function getKnownLearnersMap() {
+  const all = await DB.all();
+  const today = nowDla().date;
+  const map = new Map();
+
+  for (const r of all) {
+    const k = key(r.name);
+    if (!map.has(k)) {
+      map.set(k, {
+        key: k,
+        name: r.name,
+        photo: r.photo && !r.photo.startsWith('data:image/svg') ? r.photo : '',
+        lastDate: r.date,
+        pointedToday: r.date === today,
+        pointageToday: r.date === today ? r : null
+      });
+    } else {
+      const cur = map.get(k);
+      if (r.date > cur.lastDate) {
+        cur.lastDate = r.date;
+        cur.name = r.name;
+      }
+      if (r.photo && !r.photo.startsWith('data:image/svg') && (!cur.photo || r.date >= cur.lastDate)) {
+        cur.photo = r.photo;
+      }
+      if (r.date === today) {
+        cur.pointedToday = true;
+        cur.pointageToday = r;
+      }
+    }
+  }
+
+  CustomLearners.get().forEach(name => {
+    const k = key(name);
+    if (!map.has(k)) {
+      map.set(k, {
+        key: k,
+        name: name,
+        photo: '',
+        lastDate: '',
+        pointedToday: false,
+        pointageToday: null
+      });
+    }
+  });
+
+  return map;
 }
 
-$('#b1').onclick = async ()=>{
-  const name = $('#name').value.trim().replace(/\s+/g,' ');
-  if(name.length<3){ setErr('#e1','Saisissez votre nom complet (3 lettres minimum).'); return; }
+async function renderLearnerPicker() {
+  const grid = $('#learners-grid');
+  if (!grid) return;
+  const filterInput = $('#learner-filter');
+  const q = (filterInput ? filterInput.value.trim() : '').toLowerCase();
+
+  const map = await getKnownLearnersMap();
+  let list = [...map.values()];
+
+  if (q) {
+    const qKey = key(q);
+    list = list.filter(l => key(l.name).includes(qKey));
+  }
+
+  // Tri : non-pointés d'abord (ordre alphabétique), puis pointés du jour (ordre alphabétique)
+  list.sort((a, b) => {
+    if (a.pointedToday !== b.pointedToday) {
+      return a.pointedToday ? 1 : -1;
+    }
+    return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+  });
+
+  const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='%230E5A3C'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+
+  if (!list.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--muted)">Aucun apprenant correspondant.<br><small>Utilisez le bouton ci-dessous pour ajouter un nouvel apprenant.</small></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(l => {
+    const isSel = selectedLearner && selectedLearner.key === l.key;
+    const isDone = l.pointedToday;
+    const badgeText = isDone ? `✓ ${l.pointageToday ? l.pointageToday.time.slice(0,5) : 'Pointé'}` : 'À pointer';
+    const badgeClass = isDone ? 'done' : 'waiting';
+    return `
+      <div class="learner-card ${isSel ? 'selected' : ''} ${isDone ? 'already-done' : ''}" data-key="${esc(l.key)}" data-name="${esc(l.name)}" data-done="${isDone ? '1' : '0'}">
+        <img src="${l.photo || defaultAvatar}" alt="">
+        <div class="learner-card-name">${esc(l.name)}</div>
+        <div class="learner-card-badge ${badgeClass}">${badgeText}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectLearner(name, k, isDone) {
+  selectedLearner = { name, key: k, isDone };
   setErr('#e1');
-  const t = nowDla();
-  const ex = await DB.get(t.date+'|'+key(name));
-  if(ex){ showResult(ex,true); return; }
-  S.name = name; S.capTs = null; S.photo = null;
-  goStep(2); startCam();
+
+  document.querySelectorAll('.learner-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.key === k);
+  });
+
+  const box = $('#learner-selected-box');
+  const nameDisp = $('#selected-name-display');
+  const confirmBtn = $('#btn-confirm-learner');
+
+  if (box && nameDisp && confirmBtn) {
+    box.classList.remove('hidden');
+    nameDisp.textContent = name;
+    if (isDone) {
+      confirmBtn.innerHTML = `👁️ Déjà pointé aujourd'hui (Voir le pointage)`;
+      confirmBtn.style.background = '#00695C';
+    } else {
+      confirmBtn.innerHTML = `📸 Valider et passer à la photo avec QR code ➔`;
+      confirmBtn.style.background = 'var(--green)';
+    }
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+if ($('#learners-grid')) {
+  $('#learners-grid').addEventListener('click', e => {
+    const card = e.target.closest('.learner-card');
+    if (!card) return;
+    const name = card.dataset.name;
+    const k = card.dataset.key;
+    const isDone = card.dataset.done === '1';
+    selectLearner(name, k, isDone);
+  });
+}
+
+if ($('#learner-filter')) {
+  $('#learner-filter').addEventListener('input', () => {
+    renderLearnerPicker();
+  });
+}
+
+if ($('#btn-confirm-learner')) {
+  $('#btn-confirm-learner').onclick = async () => {
+    if (!selectedLearner || !selectedLearner.name) {
+      setErr('#e1', 'Veuillez d\'abord toucher votre nom dans la liste.');
+      return;
+    }
+    setErr('#e1');
+    const t = nowDla();
+    const ex = await DB.get(t.date + '|' + key(selectedLearner.name));
+    if (ex) {
+      showResult(ex, true);
+      return;
+    }
+    S.name = selectedLearner.name;
+    S.capTs = null;
+    S.photo = null;
+    goStep(2);
+    startCam();
+  };
+}
+
+if ($('#btn-toggle-new-learner')) {
+  $('#btn-toggle-new-learner').onclick = () => {
+    const box = $('#new-learner-box');
+    box.classList.toggle('hidden');
+    if (!box.classList.contains('hidden')) {
+      const inp = $('#new-learner-name');
+      if (inp) inp.focus();
+    }
+  };
+}
+
+if ($('#btn-add-and-select')) {
+  $('#btn-add-and-select').onclick = async () => {
+    const inp = $('#new-learner-name');
+    const name = inp ? inp.value.trim().replace(/\s+/g, ' ') : '';
+    if (name.length < 3) {
+      setErr('#e1', 'Saisissez un nom complet valide (3 lettres minimum).');
+      return;
+    }
+    setErr('#e1');
+    CustomLearners.add(name);
+    if (inp) inp.value = '';
+    $('#new-learner-box').classList.add('hidden');
+
+    const t = nowDla();
+    const ex = await DB.get(t.date + '|' + key(name));
+    if (ex) {
+      showResult(ex, true);
+      return;
+    }
+
+    S.name = name;
+    S.capTs = null;
+    S.photo = null;
+    await renderLearnerPicker();
+    selectLearner(name, key(name), false);
+    goStep(2);
+    startCam();
+  };
+}
+
+if ($('#new-learner-name')) {
+  $('#new-learner-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('#btn-add-and-select').click();
+  });
+}
+
+async function refreshKnown(){
+  await renderLearnerPicker();
+  const names = new Map();
+  (await DB.all()).forEach(r => names.set(key(r.name), r.name));
+  CustomLearners.get().forEach(n => { if (!names.has(key(n))) names.set(key(n), n); });
+  const knownEl = $('#known');
+  if (knownEl) {
+    knownEl.innerHTML = [...names.values()].sort().map(n => `<option value="${esc(n)}">`).join('');
+  }
+}
+
+$('#back2').onclick = ()=>{
+  stopCam();
+  goStep(1);
+  renderLearnerPicker();
 };
-$('#name').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#b1').click(); });
-$('#back2').onclick = ()=>{ goStep(1); };
 
 function matchQR(txt){ return typeof txt==='string' && txt.toLowerCase().includes(CONFIG.QR_MATCH.toLowerCase()); }
 function setQR(st){
@@ -1278,14 +1837,14 @@ function processPhoto(srcW,srcH,drawFn){
   setErr('#e2');
   S.capTs=Date.now();
   const t=nowDla(S.capTs);
-  const w=400, h=Math.round(dh*w/dw), bar=50;
+  const w=320, h=Math.round(dh*w/dw), bar=44;
   const out=document.createElement('canvas'); out.width=w; out.height=h+bar;
   const o=out.getContext('2d');
   o.drawImage(cv,0,0,w,h);
   o.fillStyle='#0E5A3C'; o.fillRect(0,h,w,bar);
-  o.fillStyle='#fff'; o.font='bold 17px sans-serif'; o.fillText(S.name.slice(0,32),10,h+21);
-  o.font='13px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (heure du Cameroun)`,10,h+41);
-  S.photo=out.toDataURL('image/jpeg',0.55);
+  o.fillStyle='#fff'; o.font='bold 14px sans-serif'; o.fillText(S.name.slice(0,30),8,h+18);
+  o.font='11px sans-serif'; o.fillText(`${frDate(t.date)}  ${t.time}  (Cameroun)`,8,h+34);
+  S.photo=out.toDataURL('image/jpeg',0.45);
   $('#shot').src=S.photo;
   stopCam(); shotMode(true);
   return true;
@@ -1341,7 +1900,15 @@ async function showResult(rec,already){
     </div>
     <button class="btn" id="again">Pointer une autre personne</button>`;
   goStep(4);
-  $('#again').onclick=()=>{ $('#name').value=''; S.name='';S.photo=null;S.capTs=null; goStep(1); $('#name').focus(); };
+  $('#again').onclick=()=>{
+    selectedLearner = null;
+    const box = $('#learner-selected-box');
+    if (box) box.classList.add('hidden');
+    if ($('#learner-filter')) $('#learner-filter').value = '';
+    S.name=''; S.photo=null; S.capTs=null;
+    goStep(1);
+    renderLearnerPicker();
+  };
 }
 
 /* ============ Classement et Absences ============ */
@@ -1388,6 +1955,46 @@ attachPhotoClick($('#alist'));
 $('#dclose').onclick = () => $('#dlg').close();
 
 $('#rdate').addEventListener('change', () => renderRank(true));
+
+if($('#btn-prev-day')) $('#btn-prev-day').onclick = () => {
+  const cur = $('#rdate').value || nowDla().date;
+  const parts = cur.split('-').map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2] - 1);
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  $('#rdate').value = `${y}-${m}-${day}`;
+  renderRank(true);
+};
+
+if($('#btn-next-day')) $('#btn-next-day').onclick = () => {
+  const cur = $('#rdate').value || nowDla().date;
+  const parts = cur.split('-').map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  $('#rdate').value = `${y}-${m}-${day}`;
+  renderRank(true);
+};
+
+if($('#btn-today')) $('#btn-today').onclick = () => {
+  $('#rdate').value = nowDla().date;
+  renderRank(true);
+};
+
+if($('#btn-last-active')) $('#btn-last-active').onclick = async () => {
+  const all = await DB.all();
+  if (!all.length) {
+    alert("Aucun pointage dans l'historique.");
+    return;
+  }
+  const dates = [...new Set(all.map(r => r.date))].sort().reverse();
+  if (dates.length > 0) {
+    $('#rdate').value = dates[0];
+    renderRank(false);
+  }
+};
 if($('#btnref')) $('#btnref').onclick = async () => {
   const btn = $('#btnref');
   const prev = btn.textContent;
@@ -1521,9 +2128,30 @@ $('#period').onchange=renderDir;
 
 function cutoffDate(days){ return days>0 ? nowDla(Date.now()-days*86400000).date : '0000-00-00'; }
 
+async function updateStorageStatsDisplay() {
+  const box = $('#storage-stats-box');
+  if (!box) return;
+  try {
+    const u = await PhotoStorageManager.getUsage();
+    box.innerHTML = `
+      📊 <b>${u.totalRecords}</b> pointages au total<br>
+      📸 <b>${u.totalPhotos}</b> photos enregistrées (~<b>${u.approxMB} Mo</b> d'espace mémoire)<br>
+      ${u.photoBytes > 15 * 1024 * 1024 ? '<span style="color:#B3261E;font-weight:700">⚠️ Mémoire chargée : un nettoyage est recommandé pour éviter les bugs.</span>' : '<span style="color:var(--green);font-weight:600">✓ Mémoire optimale</span>'}
+    `;
+  } catch(e) {
+    box.textContent = "Impossible de calculer l'espace mémoire.";
+  }
+}
+
 async function renderDir(){
   $('#gate').classList.toggle('hidden',unlocked); $('#panel').classList.toggle('hidden',!unlocked);
   if(!unlocked) return;
+  const tokenInp = $('#cfg-github-token');
+  if (tokenInp && !tokenInp.value) {
+    const curTok = localStorage.getItem('cfpm_github_token') || '';
+    if (curTok) tokenInp.value = curTok;
+  }
+  updateStorageStatsDisplay();
   const cut=cutoffDate(+$('#period').value);
   const allRecs=(await DB.all());
   const recs=allRecs.filter(r=>r.date>=cut);
@@ -2047,6 +2675,79 @@ $('#wipe').onclick = async () => {
   }
 };
 
+// Optimisation Stockage & Photos
+if ($('#btn-clean-old-photos')) {
+  $('#btn-clean-old-photos').onclick = async () => {
+    if (!confirm("Nettoyer les anciennes photos de plus de 14 jours ?\n\nToutes les présences, noms, dates et heures restent 100% enregistrés et consultables.\nSeuls les gros fichiers photos anciens seront allégés pour libérer de la mémoire.")) return;
+    const btn = $('#btn-clean-old-photos');
+    btn.disabled = true;
+    btn.textContent = "Nettoyage en cours…";
+    try {
+      const res = await PhotoStorageManager.cleanOldPhotos(14);
+      alert(`✅ Nettoyage terminé !\n\n${res.cleanedCount} anciennes photos allégées.\n${res.freedMB} Mo d'espace mémoire libéré.`);
+      await updateStorageStatsDisplay();
+      renderRank();
+      renderDir();
+    } catch(e) {
+      alert("Erreur lors du nettoyage : " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "🧹 Nettoyer photos > 14 jours";
+    }
+  };
+}
+
+if ($('#btn-sync-all-history')) {
+  $('#btn-sync-all-history').onclick = async () => {
+    const btn = $('#btn-sync-all-history');
+    btn.disabled = true;
+    btn.textContent = "Téléchargement Cloud…";
+    try {
+      await CloudSync.pullAllFiles();
+      alert("✅ Synchronisation terminée avec succès depuis le Cloud !");
+      await updateStorageStatsDisplay();
+      renderRank();
+      renderDir();
+      refreshKnown();
+    } catch(e) {
+      alert("Erreur lors de la synchronisation : " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "🔄 Synchro tout l'historique Cloud";
+    }
+  };
+}
+
+// Configuration Token GitHub
+if ($('#btn-save-github-token')) {
+  $('#btn-save-github-token').onclick = () => {
+    const tok = $('#cfg-github-token').value.trim();
+    if (!tok) {
+      localStorage.removeItem('cfpm_github_token');
+      alert("Jeton réinitialisé au jeton par défaut.");
+    } else {
+      localStorage.setItem('cfpm_github_token', tok);
+      alert("✅ Jeton d'accès GitHub enregistré !");
+    }
+  };
+}
+
+if ($('#btn-test-github-token')) {
+  $('#btn-test-github-token').onclick = async () => {
+    const resDiv = $('#token-test-result');
+    resDiv.textContent = "Test de connexion au Cloud GitHub en cours…";
+    resDiv.style.color = "var(--ink)";
+    const testRes = await CloudSync.testConnection();
+    if (testRes.ok) {
+      resDiv.innerHTML = `🟢 Connecté avec succès au dépôt <b>${esc(testRes.full_name)}</b> ! (Requêtes restantes : ${testRes.remaining}/${testRes.limit})`;
+      resDiv.style.color = "var(--green)";
+    } else {
+      resDiv.innerHTML = `🔴 Échec de connexion : ${esc(testRes.error)}.<br>Vérifiez le jeton GitHub ou la connexion internet.`;
+      resDiv.style.color = "#B3261E";
+    }
+  };
+}
+
 /* ============ Navigation ============ */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   const v=b.dataset.v;
@@ -2084,10 +2785,12 @@ setInterval(()=>{
 
 if(window.AndroidBridge) document.body.classList.add('inapp');
 DB.init().then(async ()=>{
-  refreshKnown();
+  await restoreFromAndroidDeviceIfEmpty();
   goStep(1);
-  await CloudSync.syncAllPending();
-  refreshKnown();
+  await refreshKnown();
+  await CloudSync.syncRecentDays(14);
+  await refreshKnown();
+  PhotoStorageManager.checkAndAutoClean();
 });
 </script>
 </body>
