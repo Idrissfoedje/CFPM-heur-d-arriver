@@ -351,6 +351,26 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
   background:#f9fbf9;border:1px solid var(--line);border-radius:10px;
   padding:10px;margin-top:8px;
 }
+/* Modale de mise à jour obligatoire (In-App Update) */
+.update-modal-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.88);backdrop-filter:blur(5px);
+  z-index:999999;display:none;align-items:center;justify-content:center;
+  padding:16px;box-sizing:border-box;
+}
+.update-modal-card{
+  background:#fff;border-radius:16px;padding:22px 18px;
+  max-width:390px;width:100%;text-align:center;
+  box-shadow:0 12px 32px rgba(0,0,0,0.4);animation:popIn 0.25s ease-out;
+}
+.update-modal-icon{
+  font-size:3rem;margin-bottom:8px;
+}
+.update-modal-desc{
+  background:#F5F7F4;border-radius:10px;padding:12px;
+  font-size:0.88rem;color:var(--ink);line-height:1.4;text-align:left;
+  border-left:4px solid var(--green);
+}
 </style>
 </head>
 <body>
@@ -568,6 +588,17 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
         <div id="mitems"></div>
       </div>
 
+      <!-- Section Version & Mises à jour -->
+      <div class="card" style="margin-top:14px">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 style="margin:0">📲 Version de l'application</h3>
+            <p class="hint" style="margin:2px 0 0" id="dir-app-version-label">Version installée : v2.0.0</p>
+          </div>
+          <button class="btn sm alt" id="btn-check-update" type="button" style="margin:0; width:auto; padding:8px 12px;">🔍 Vérifier mise à jour</button>
+        </div>
+      </div>
+
       <button class="btn alt" id="lock">Verrouiller</button>
       <button class="btn danger" id="wipe">Effacer toutes les données</button>
     </div>
@@ -678,7 +709,111 @@ const CONFIG = {
   ADMIN_PIN: '2370',                    // code d'accès direction
   DISCIPLINE_THRESHOLD: 3,              // nb de retards (sur la période) avant convocation
   PHOTO_TO_VALIDATE_MAX_MS: 5 * 60 * 1000, // délai max pour valider la photo
-  DEFAULT_TOKEN: String.fromCharCode(103,104,112,95,116,49,108,55,103,66,72,121,66,102,52,67,75,48,97,53,78,52,74,57,69,109,72,116,100,122,78,52,82,75,48,103,53,101,119,77)
+  DEFAULT_TOKEN: String.fromCharCode(103,104,112,95,116,49,108,55,103,66,72,121,66,102,52,67,75,48,97,53,78,52,74,57,69,109,72,116,100,122,78,52,82,75,48,103,53,101,119,77),
+  APP_VERSION_CODE: 2,
+  APP_VERSION_NAME: '2.0.0'
+};
+
+/* ============ Vérification et Mise à Jour Obligatoire (In-App Update) ============ */
+const AutoUpdateChecker = {
+  versionUrl: 'https://raw.githubusercontent.com/Idrissfoedje/CFPM-heur-d-arriver/main/version.json',
+  isChecking: false,
+  remoteData: null,
+
+  getCurrentVersion() {
+    let code = CONFIG.APP_VERSION_CODE;
+    let name = CONFIG.APP_VERSION_NAME;
+    if (window.AndroidBridge && window.AndroidBridge.getAppVersionCode) {
+      try {
+        const c = window.AndroidBridge.getAppVersionCode();
+        if (c > 0) code = c;
+      } catch(e){}
+    }
+    if (window.AndroidBridge && window.AndroidBridge.getAppVersionName) {
+      try {
+        const n = window.AndroidBridge.getAppVersionName();
+        if (n) name = n;
+      } catch(e){}
+    }
+    return { code, name };
+  },
+
+  async check(isManual = false) {
+    if (this.isChecking) return;
+    this.isChecking = true;
+    try {
+      const res = await fetch(`${this.versionUrl}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) {
+        if (isManual) alert("Impossible de contacter le serveur de mise à jour (Erreur HTTP " + res.status + ").");
+        return;
+      }
+      const data = await res.json();
+      this.remoteData = data;
+      const cur = this.getCurrentVersion();
+      if (data.versionCode && data.versionCode > cur.code) {
+        this.showModal(data, cur);
+      } else {
+        if (isManual) {
+          alert(`✅ Votre application est parfaitement à jour !\n\nVersion installée : v${cur.name} (Code ${cur.code})`);
+        }
+      }
+    } catch(e) {
+      console.warn('AutoUpdateChecker error:', e);
+      if (isManual) alert("Erreur réseau lors de la vérification de mise à jour.");
+    } finally {
+      this.isChecking = false;
+    }
+  },
+
+  showModal(data, cur) {
+    let overlay = $('#update-modal-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'update-modal-overlay';
+      overlay.className = 'update-modal-overlay';
+      document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+      <div class="update-modal-card">
+        <div class="update-modal-icon">🚀</div>
+        <h2 style="margin:0 0 8px; color:var(--green); font-size:1.35rem;">Mise à jour obligatoire</h2>
+        <div style="font-size:0.88rem; color:var(--muted); margin-bottom:12px;">
+          Version installée : <b>v${esc(cur.name)}</b> ➔ Nouvelle : <b style="color:var(--green);">v${esc(data.versionName || data.versionCode)}</b>
+        </div>
+        <div class="update-modal-desc">
+          ${esc(data.notes || "Une nouvelle version avec des améliorations importantes est disponible.")}
+        </div>
+        <div style="background:#FFF9C4; border:1px solid #FFE082; border-radius:8px; padding:10px; margin:14px 0; font-size:0.85rem; color:#795548; text-align:left;">
+          ⚠️ <b>Action obligatoire :</b> Vous devez installer cette mise à jour pour continuer à enregistrer vos présences et synchroniser vos données.
+        </div>
+        <button id="btn-download-update" class="btn" style="padding:14px; font-size:1.05rem; font-weight:700; width:100%; margin:0; display:flex; align-items:center; justify-content:center; gap:8px;">
+          📲 Télécharger et Installer la mise à jour
+        </button>
+        <div id="update-download-hint" style="font-size:0.8rem; color:var(--muted); margin-top:10px;">
+          Une fois le téléchargement terminé, ouvrez le fichier téléchargé pour valider la mise à jour.
+        </div>
+      </div>
+    `;
+
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    $('#btn-download-update').onclick = () => {
+      const url = data.downloadUrl || 'https://raw.githubusercontent.com/Idrissfoedje/CFPM-heur-d-arriver/main/PointageCFPM.apk';
+      if (window.AndroidBridge && window.AndroidBridge.openBrowser) {
+        window.AndroidBridge.openBrowser(url);
+      } else {
+        window.open(url, '_blank') || (window.location.href = url);
+      }
+      const hint = $('#update-download-hint');
+      if (hint) {
+        hint.innerHTML = `⏳ Téléchargement lancé ! Ouvrez vos notifications Android ou votre dossier <b>Téléchargements</b> puis appuyez sur <b>Installer</b>.`;
+        hint.style.color = 'var(--green)';
+        hint.style.fontWeight = 'bold';
+      }
+    };
+  }
 };
 
 /* ============ Utilitaires ============ */
@@ -2152,6 +2287,11 @@ async function renderDir(){
     if (curTok) tokenInp.value = curTok;
   }
   updateStorageStatsDisplay();
+  const verLabel = $('#dir-app-version-label');
+  if (verLabel) {
+    const curVer = AutoUpdateChecker.getCurrentVersion();
+    verLabel.textContent = `Version installée : v${curVer.name} (Code ${curVer.code})`;
+  }
   const cut=cutoffDate(+$('#period').value);
   const allRecs=(await DB.all());
   const recs=allRecs.filter(r=>r.date>=cut);
@@ -2748,6 +2888,12 @@ if ($('#btn-test-github-token')) {
   };
 }
 
+if ($('#btn-check-update')) {
+  $('#btn-check-update').onclick = () => {
+    AutoUpdateChecker.check(true);
+  };
+}
+
 /* ============ Navigation ============ */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   const v=b.dataset.v;
@@ -2768,6 +2914,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 // Écoute de rétablissement de connexion internet
 window.addEventListener('online', ()=>{
   updateSyncStatus('🌐 Connexion rétablie : synchro…');
+  AutoUpdateChecker.check();
   CloudSync.syncAllPending().then(()=>{
     refreshKnown();
     if($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
@@ -2788,6 +2935,7 @@ DB.init().then(async ()=>{
   await restoreFromAndroidDeviceIfEmpty();
   goStep(1);
   await refreshKnown();
+  AutoUpdateChecker.check();
   await CloudSync.syncRecentDays(14);
   await refreshKnown();
   PhotoStorageManager.checkAndAutoClean();

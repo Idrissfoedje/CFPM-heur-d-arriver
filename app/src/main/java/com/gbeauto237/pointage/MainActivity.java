@@ -397,5 +397,39 @@ public class MainActivity extends Activity {
             }
             return "";
         }
+
+        @JavascriptInterface
+        public void openBrowser(final String url) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (final Exception e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "Ouverture impossible : " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }
+
+        @JavascriptInterface
+        public int getAppVersionCode() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            } catch (Exception e) {
+                return 2;
+            }
+        }
+
+        @JavascriptInterface
+        public String getAppVersionName() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "2.0.0";
+            }
+        }
     }
 }

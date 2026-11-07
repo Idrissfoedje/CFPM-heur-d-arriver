@@ -36,8 +36,8 @@ cat << 'EOF' > "$BUILD_DIR/AndroidManifest.xml"
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.gbeauto237.pointage"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="2"
+    android:versionName="2.0.0">
 
     <uses-sdk
         android:minSdkVersion="21"

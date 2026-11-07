@@ -1,0 +1,10 @@
+{
+  "versionCode": 2,
+  "versionName": "2.0.0",
+  "minRequiredVersionCode": 2,
+  "forceUpdate": true,
+  "title": "Mise à jour obligatoire requise",
+  "notes": "Version 2.0 disponible : sélection directe de son nom sans saisie, affichage responsive optimisé, nettoyage automatique des photos et synchronisation Cloud résiliente.",
+  "downloadUrl": "https://raw.githubusercontent.com/Idrissfoedje/CFPM-heur-d-arriver/main/PointageCFPM.apk",
+  "releaseDate": "2026-11-07"
+}
