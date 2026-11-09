@@ -36,8 +36,8 @@ cat << 'EOF' > "$BUILD_DIR/AndroidManifest.xml"
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.gbeauto237.pointage"
-    android:versionCode="2"
-    android:versionName="2.0.0">
+    android:versionCode="3"
+    android:versionName="2.0.1">
 
     <uses-sdk
         android:minSdkVersion="21"
@@ -87,8 +87,8 @@ echo "=== 1. Generating R.java with aapt ==="
 aapt package -f -m \
     --min-sdk-version 21 \
     --target-sdk-version 34 \
-    --version-code 1 \
-    --version-name "1.0" \
+    --version-code 3 \
+    --version-name "2.0.1" \
     -J "$GEN_DIR" \
     -M "$BUILD_DIR/AndroidManifest.xml" \
     -S "$RES_DIR" \
@@ -110,8 +110,8 @@ echo "=== 4. Packaging APK with aapt ==="
 aapt package -f \
     --min-sdk-version 21 \
     --target-sdk-version 34 \
-    --version-code 1 \
-    --version-name "1.0" \
+    --version-code 3 \
+    --version-name "2.0.1" \
     -M "$BUILD_DIR/AndroidManifest.xml" \
     -S "$RES_DIR" \
     -A "$DIR/app/src/main/assets" \

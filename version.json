@@ -1,10 +1,10 @@
 {
-  "versionCode": 2,
-  "versionName": "2.0.0",
+  "versionCode": 3,
+  "versionName": "2.0.1",
   "minRequiredVersionCode": 2,
   "forceUpdate": true,
-  "title": "Mise à jour obligatoire requise",
-  "notes": "Version 2.0 disponible : sélection directe de son nom sans saisie, affichage responsive optimisé, nettoyage automatique des photos et synchronisation Cloud résiliente.",
+  "title": "Mise à jour requise (Correctif v2.0.1)",
+  "notes": "Correction complète des bugs dans l'Espace Direction : les modifications et suppressions sont désormais instantanées, synchronisées en temps réel sans réapparition intempestive.",
   "downloadUrl": "https://raw.githubusercontent.com/Idrissfoedje/CFPM-heur-d-arriver/main/PointageCFPM.apk",
-  "releaseDate": "2026-11-07"
+  "releaseDate": "2026-11-09"
 }

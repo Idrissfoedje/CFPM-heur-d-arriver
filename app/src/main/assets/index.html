@@ -710,9 +710,11 @@ const CONFIG = {
   DISCIPLINE_THRESHOLD: 3,              // nb de retards (sur la période) avant convocation
   PHOTO_TO_VALIDATE_MAX_MS: 5 * 60 * 1000, // délai max pour valider la photo
   DEFAULT_TOKEN: String.fromCharCode(103,104,112,95,109,77,70,82,79,81,119,87,87,120,86,110,76,56,97,55,113,68,106,80,118,65,107,67,48,54,86,82,74,67,49,119,119,115,50,85),
-  APP_VERSION_CODE: 2,
-  APP_VERSION_NAME: '2.0.0'
+  APP_VERSION_CODE: 3,
+  APP_VERSION_NAME: '2.0.1'
 };
+
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='%230E5A3C'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
 
 /* ============ Vérification et Mise à Jour Obligatoire (In-App Update) ============ */
 const AutoUpdateChecker = {
@@ -874,10 +876,14 @@ function updateSyncStatus(msg, isSuccess, isError) {
 /* ============ Gestion des suppressions (Tombstones anti-résurrection) ============ */
 const Tombstones = {
   KEY: 'cfpm_deleted_tombstones',
+  MAX_AGE_MS: 30 * 24 * 60 * 60 * 1000, // Conserver 30 jours pour bloquer la résurrection
   _get() {
     try {
       const d = JSON.parse(localStorage.getItem(this.KEY) || '[]');
-      return Array.isArray(d) ? new Map(d) : new Map();
+      if (!Array.isArray(d)) return new Map();
+      const now = Date.now();
+      const valid = d.filter(([_, ts]) => (now - Number(ts || 0)) < this.MAX_AGE_MS);
+      return new Map(valid);
     } catch(e) { return new Map(); }
   },
   _save(m) {
@@ -1016,8 +1022,14 @@ const PhotoStorageManager = {
 /* ============ Synchronisation Cloud GitHub Résiliente ============ */
 const CloudSync = {
   repo: 'Idrissfoedje/CFPM-heur-d-arriver',
-  busy: false,
-  _syncPromise: null,
+  _queue: Promise.resolve(),
+
+  // Exécution sérielle stricte : protège contre toute collision entre modifications et synchronisations
+  enqueue(task) {
+    const next = this._queue.then(() => task(), () => task());
+    this._queue = next.catch(e => console.warn('CloudSync task error:', e));
+    return next;
+  },
 
   getToken() {
     const stored = localStorage.getItem('cfpm_github_token');
@@ -1052,282 +1064,196 @@ const CloudSync = {
     }
   },
 
+  // Récupération temps réel depuis l'API GitHub sans délai de cache CDN Fastly
   async getDay(date) {
     const path = `data/pointages-${date}.json`;
+    const apiUrl = `https://api.github.com/repos/${this.repo}/contents/${path}?t=${Date.now()}`;
+
+    // 1. Toujours tenter en premier l'API GitHub avec jeton d'authentification (temps réel, 0ms de cache)
+    try {
+      let res = await fetch(apiUrl, { headers: this.headers(true), cache: 'no-store' });
+      if (res.status === 404) {
+        return { sha: null, list: [] };
+      }
+      if (res.ok) {
+        const data = await res.json();
+        let raw = '';
+        if (data.content && data.content.trim().length > 0) {
+          raw = base64ToUtf8(data.content.replace(/\s/g, ''));
+        } else if (data.sha) {
+          const blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
+            headers: this.headers(true),
+            cache: 'no-store'
+          });
+          if (blobRes.ok) {
+            const blobData = await blobRes.json();
+            raw = base64ToUtf8((blobData.content || '').replace(/\s/g, ''));
+          }
+        }
+        if (raw) {
+          const list = JSON.parse(raw);
+          return { sha: data.sha, list: Array.isArray(list) ? list : [] };
+        }
+        return { sha: data.sha, list: [] };
+      }
+    } catch(e) {
+      console.warn('API getDay error:', e);
+    }
+
+    // 2. Repli secondaire : raw.githubusercontent.com (mode dégradé ou hors quota)
     const rawUrl = `https://raw.githubusercontent.com/${this.repo}/main/${path}?t=${Date.now()}`;
     try {
       const rawRes = await fetch(rawUrl, { cache: 'no-store' });
       if (rawRes.ok) {
         const list = await rawRes.json();
-        let sha = null;
-        try {
-          const infoRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/${path}`, {
-            headers: this.headers(false)
-          });
-          if (infoRes.ok) {
-            const info = await infoRes.json();
-            sha = info.sha;
-          }
-        } catch(ignored) {}
-        return { sha, list: Array.isArray(list) ? list : [] };
+        return { sha: null, list: Array.isArray(list) ? list : [] };
       }
     } catch(e) {
-      console.warn('Raw fetch error:', e);
+      console.warn('Raw fallback fetch error:', e);
     }
 
-    const url = `https://api.github.com/repos/${this.repo}/contents/${path}?t=${Date.now()}`;
-    try {
-      let res = await fetch(url, { headers: this.headers(true), cache: 'no-store' });
-      if (res.status === 401) {
-        res = await fetch(url, { headers: this.headers(false), cache: 'no-store' });
-      }
-      if (res.status === 404) return { sha: null, list: [] };
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      let raw = '';
-      if (data.content && data.content.trim().length > 0) {
-        raw = base64ToUtf8(data.content.replace(/\s/g, ''));
-      } else if (data.sha) {
-        let blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
-          headers: this.headers(true),
-          cache: 'no-store'
-        });
-        if (blobRes.status === 401) {
-          blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
-            headers: this.headers(false),
-            cache: 'no-store'
-          });
-        }
-        if (!blobRes.ok) throw new Error('Blob HTTP ' + blobRes.status);
-        const blobData = await blobRes.json();
-        raw = base64ToUtf8((blobData.content || '').replace(/\s/g, ''));
-      }
-      if (!raw) return { sha: data.sha, list: [] };
-      const list = JSON.parse(raw);
-      return { sha: data.sha, list: Array.isArray(list) ? list : [] };
-    } catch(e) {
-      console.warn('getDay error:', e);
-      return null;
-    }
+    return null;
   },
 
   // Suppression d'un pointage : local + Cloud GitHub
-  async deletePointage(id, date, name) {
-    updateSyncStatus('☁️ Suppression en cours…');
-    Tombstones.add(id);
-    await DB.del(id);
-
-    try {
-      const remote = await this.getDay(date);
-      if (remote && remote.sha) {
-        const updatedList = remote.list.filter(r => r.id !== id && !Tombstones.has(r.id));
-        if (updatedList.length === 0) {
-          // Aucun pointage restant pour cette date : supprimer le fichier distant
-          const delRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/data/pointages-${date}.json`, {
-            method: 'DELETE',
-            headers: this.headers(),
-            body: JSON.stringify({
-              message: `Suppression pointage ${name || id} (${date})`,
-              sha: remote.sha
-            })
-          });
-          if (delRes.ok) {
-            Tombstones.remove(id);
-            updateSyncStatus('✅ Supprimé du Cloud et de l\'appareil', true);
-            return true;
-          }
-        } else {
-          // Mettre à jour avec la liste sans cet élément
-          const putRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/data/pointages-${date}.json`, {
-            method: 'PUT',
-            headers: this.headers(),
-            body: JSON.stringify({
-              message: `Suppression pointage ${name || id} (${date})`,
-              content: utf8ToBase64(JSON.stringify(updatedList)),
-              sha: remote.sha
-            })
-          });
-          if (putRes.ok) {
-            Tombstones.remove(id);
-            updateSyncStatus('✅ Supprimé du Cloud et de l\'appareil', true);
-            return true;
-          }
-        }
+  deletePointage(id, date, name) {
+    return this.enqueue(async () => {
+      updateSyncStatus('☁️ Suppression en cours…');
+      Tombstones.add(id);
+      await DB.del(id);
+      try {
+        await this._doSync(date);
+        updateSyncStatus('✅ Supprimé du Cloud et de l\'appareil', true);
+        return true;
+      } catch(e) {
+        console.warn('deletePointage error:', e);
+        updateSyncStatus('📱 Supprimé en local (en attente Cloud)');
+        return false;
       }
-    } catch(e) {
-      console.warn('deletePointage remote error:', e);
-    }
-    updateSyncStatus('📱 Supprimé en local (en attente Cloud)');
-    return true;
+    });
   },
 
   // Modification / correction d'un pointage : local + Cloud GitHub
-  async updatePointage(oldRec, newRec) {
-    updateSyncStatus('☁️ Mise à jour du pointage…');
-    try {
-      // 1. Mise à jour locale
-      if (oldRec.id !== newRec.id) {
-        Tombstones.add(oldRec.id);
-        await DB.del(oldRec.id);
-      }
-      await DB.put({ ...newRec, synced: false });
-
-      // 2. Si même date : mettre à jour le fichier distant
-      if (oldRec.date === newRec.date) {
-        const remote = await this.getDay(newRec.date);
-        if (remote && remote.sha) {
-          const list = remote.list.filter(r => r.id !== oldRec.id && r.id !== newRec.id && !Tombstones.has(r.id));
-          list.push({ ...newRec, synced: true });
-          list.sort((a,b) => a.secs - b.secs);
-          const putRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/data/pointages-${newRec.date}.json`, {
-            method: 'PUT',
-            headers: this.headers(),
-            body: JSON.stringify({
-              message: `Correction pointage ${newRec.name} (${newRec.date})`,
-              content: utf8ToBase64(JSON.stringify(list)),
-              sha: remote.sha
-            })
-          });
-          if (putRes.ok) {
-            await DB.put({ ...newRec, synced: true });
-            if (oldRec.id !== newRec.id) Tombstones.remove(oldRec.id);
-            updateSyncStatus('✅ Pointage synchronisé', true);
-            return true;
-          }
+  updatePointage(oldRec, newRec) {
+    return this.enqueue(async () => {
+      updateSyncStatus('☁️ Mise à jour du pointage…');
+      try {
+        // 1. Si l'identifiant a changé (changement de nom ou de date), tombstoner et supprimer l'ancien
+        if (oldRec.id !== newRec.id) {
+          Tombstones.add(oldRec.id);
+          await DB.del(oldRec.id);
         }
-      } else {
-        // La date a changé : supprimer sur l'ancienne date et ajouter sur la nouvelle
-        await this.deletePointage(oldRec.id, oldRec.date, oldRec.name);
-        await this.sync(newRec.date);
-        updateSyncStatus('✅ Pointage déplacé et synchronisé', true);
-        return true;
+        // Enregistrer le nouveau pointage localement avec statut non-synchronisé
+        await DB.put({ ...newRec, synced: false });
+
+        // 2. Synchroniser la date du nouveau pointage (poussera newRec vers GitHub avec retry)
+        const ok = await this._doSync(newRec.date);
+
+        // 3. Si la date a changé, synchroniser aussi l'ancienne date pour retirer le pointage
+        if (oldRec.date !== newRec.date) {
+          await this._doSync(oldRec.date);
+        }
+
+        updateSyncStatus('✅ Pointage synchronisé', true);
+        return ok;
+      } catch(e) {
+        console.warn('updatePointage error:', e);
+        updateSyncStatus('📱 Modifié en local (en attente envoi)', false, true);
+        return false;
       }
-    } catch(e) {
-      console.warn('updatePointage error:', e);
-    }
-    updateSyncStatus('📱 Modifié en local (en attente envoi)', false, true);
-    return false;
+    });
   },
 
   // Renommer un apprenant dans TOUS ses pointages passés (local + Cloud GitHub)
-  async renameLearner(oldName, newName) {
-    if (!oldName || !newName || oldName === newName) return;
-    updateSyncStatus(`☁️ Renommage de ${oldName} vers ${newName}…`);
-    const all = await DB.all();
-    const oldK = key(oldName);
-    const toUpdate = all.filter(r => key(r.name) === oldK);
-    if (!toUpdate.length) return;
+  renameLearner(oldName, newName) {
+    return this.enqueue(async () => {
+      if (!oldName || !newName || oldName === newName) return;
+      updateSyncStatus(`☁️ Renommage de ${oldName} vers ${newName}…`);
+      const all = await DB.all();
+      const oldK = key(oldName);
+      const toUpdate = all.filter(r => key(r.name) === oldK);
+      const dates = [...new Set(toUpdate.map(r => r.date))];
 
-    const dates = [...new Set(toUpdate.map(r => r.date))];
-
-    // Mise à jour locale
-    for (const r of toUpdate) {
-      const oldId = r.id;
-      Tombstones.add(oldId);
-      await DB.del(oldId);
-      const updated = {
-        ...r,
-        name: newName,
-        id: r.date + '|' + key(newName),
-        synced: false
-      };
-      await DB.put(updated);
-    }
-
-    // Mise à jour distante pour chaque date concernée
-    for (const d of dates) {
-      try {
-        const remote = await this.getDay(d);
-        if (remote && remote.sha) {
-          const list = remote.list.map(r => {
-            if (key(r.name) === oldK) {
-              return {
-                ...r,
-                name: newName,
-                id: r.date + '|' + key(newName)
-              };
-            }
-            return r;
-          });
-          const putRes = await fetch(`https://api.github.com/repos/${this.repo}/contents/data/pointages-${d}.json`, {
-            method: 'PUT',
-            headers: this.headers(),
-            body: JSON.stringify({
-              message: `Renommage apprenant ${oldName} -> ${newName} (${d})`,
-              content: utf8ToBase64(JSON.stringify(list)),
-              sha: remote.sha
-            })
-          });
-          if (putRes.ok) {
-            for (const r of toUpdate.filter(x => x.date === d)) {
-              const newId = d + '|' + key(newName);
-              const cur = await DB.get(newId);
-              if (cur) await DB.put({ ...cur, synced: true });
-              Tombstones.remove(r.id);
-            }
-          }
-        }
-      } catch(e) {
-        console.warn('renameLearner date error:', d, e);
+      for (const r of toUpdate) {
+        const oldId = r.id;
+        Tombstones.add(oldId);
+        await DB.del(oldId);
+        const updated = {
+          ...r,
+          name: newName,
+          id: r.date + '|' + key(newName),
+          synced: false
+        };
+        await DB.put(updated);
       }
-    }
-    updateSyncStatus('✅ Apprenant renommé partout', true);
+
+      for (const d of dates) {
+        await this._doSync(d);
+      }
+
+      CustomLearners.rename(oldName, newName);
+      updateSyncStatus('✅ Apprenant renommé partout', true);
+    });
   },
 
   // Supprimer un apprenant et TOUS ses pointages enregistrés
-  async deleteLearner(name) {
-    if (!name) return;
-    updateSyncStatus(`☁️ Suppression de l'apprenant ${name}…`);
-    const all = await DB.all();
-    const k = key(name);
-    const toDelete = all.filter(r => key(r.name) === k);
-    for (const r of toDelete) {
-      await this.deletePointage(r.id, r.date, r.name);
-    }
-    CustomLearners.remove(name);
-    updateSyncStatus(`✅ Apprenant ${name} supprimé partout`, true);
+  deleteLearner(name) {
+    return this.enqueue(async () => {
+      if (!name) return;
+      updateSyncStatus(`☁️ Suppression de l'apprenant ${name}…`);
+      const all = await DB.all();
+      const k = key(name);
+      const toDelete = all.filter(r => key(r.name) === k);
+
+      for (const r of toDelete) {
+        Tombstones.add(r.id);
+        await DB.del(r.id);
+      }
+
+      const dates = [...new Set(toDelete.map(r => r.date))];
+      for (const d of dates) {
+        await this._doSync(d);
+      }
+
+      CustomLearners.remove(name);
+      updateSyncStatus(`✅ Apprenant ${name} supprimé partout`, true);
+    });
   },
 
   // Effacer tous les fichiers de pointages distants sur GitHub
-  async wipeAllRemoteFiles() {
-    updateSyncStatus('☁️ Nettoyage du Cloud en cours…');
-    const url = `https://api.github.com/repos/${this.repo}/contents/data`;
-    try {
-      const res = await fetch(url, { headers: this.headers(), cache: 'no-store' });
-      if (!res.ok) return false;
-      const files = await res.json();
-      if (!Array.isArray(files)) return false;
-      const jsonFiles = files.filter(f => f.name.startsWith('pointages-') && f.name.endsWith('.json'));
-      for (const f of jsonFiles) {
-        await fetch(`https://api.github.com/repos/${this.repo}/contents/data/${f.name}`, {
-          method: 'DELETE',
-          headers: this.headers(),
-          body: JSON.stringify({
-            message: `Effacement direction ${f.name}`,
-            sha: f.sha
-          })
-        });
+  wipeAllRemoteFiles() {
+    return this.enqueue(async () => {
+      updateSyncStatus('☁️ Nettoyage du Cloud en cours…');
+      const url = `https://api.github.com/repos/${this.repo}/contents/data`;
+      try {
+        const res = await fetch(url, { headers: this.headers(true), cache: 'no-store' });
+        if (!res.ok) return false;
+        const files = await res.json();
+        if (!Array.isArray(files)) return false;
+        const jsonFiles = files.filter(f => f.name.startsWith('pointages-') && f.name.endsWith('.json'));
+        for (const f of jsonFiles) {
+          await fetch(`https://api.github.com/repos/${this.repo}/contents/data/${f.name}`, {
+            method: 'DELETE',
+            headers: this.headers(true),
+            body: JSON.stringify({
+              message: `Effacement direction ${f.name}`,
+              sha: f.sha
+            })
+          });
+        }
+        updateSyncStatus('✅ Cloud entièrement vidé', true);
+        return true;
+      } catch(e) {
+        console.warn('wipeAllRemoteFiles error:', e);
+        updateSyncStatus('⚠️ Erreur effacement Cloud', false, true);
+        return false;
       }
-      updateSyncStatus('✅ Cloud entièrement vidé', true);
-      return true;
-    } catch(e) {
-      console.warn('wipeAllRemoteFiles error:', e);
-      updateSyncStatus('⚠️ Erreur effacement Cloud', false, true);
-      return false;
-    }
+    });
   },
 
   // Synchronisation complète bidirectionnelle sans réapparition des éléments supprimés
-  async sync(date) {
-    if (this.busy && this._syncPromise) {
-      try { await this._syncPromise; } catch(e){}
-    }
-    this.busy = true;
-    this._syncPromise = this._doSync(date).finally(() => {
-      this.busy = false;
-      this._syncPromise = null;
-    });
-    return this._syncPromise;
+  sync(date) {
+    return this.enqueue(() => this._doSync(date));
   },
 
   async _doSync(date) {
@@ -1349,7 +1275,7 @@ const CloudSync = {
         return false;
       }
 
-      // Nettoyer les éléments distants contre les tombstones locaux
+      // Nettoyer les éléments distants contre les tombstones
       let remoteNeedsUpdate = false;
       const validRemoteList = remote.list.filter(r => {
         if (Tombstones.has(r.id)) {
@@ -1362,36 +1288,43 @@ const CloudSync = {
       const remoteMap = new Map(validRemoteList.map(r => [r.id, r]));
       const finalDayMap = new Map();
 
-      // 1. Ajouter tous les éléments distants valides
+      // 1. Ajouter d'abord les éléments distants valides
       for (const r of validRemoteList) {
         finalDayMap.set(r.id, { ...r, synced: true });
       }
 
       // 2. Traiter les éléments locaux pour cette date
-      let hasLocalUnpushed = false;
+      let hasLocalChanges = false;
       for (const r of localForDay) {
         if (Tombstones.has(r.id)) {
           await DB.del(r.id);
+          hasLocalChanges = true;
           continue;
         }
+
         if (!r.synced) {
-          // Pointage créé hors-ligne sur cet appareil : on l'ajoute !
-          if (!remoteMap.has(r.id)) {
-            finalDayMap.set(r.id, { ...r, synced: true });
-            hasLocalUnpushed = true;
-          }
+          // Pointage créé OU modifié localement : la modification locale est prioritaire et écrase la version distante !
+          const photoToKeep = r.photo || (remoteMap.get(r.id) ? remoteMap.get(r.id).photo : '');
+          finalDayMap.set(r.id, { ...r, photo: photoToKeep, synced: true });
+          hasLocalChanges = true;
         } else {
-          // Était synchronisé, mais n'est plus sur le Cloud -> a été supprimé sur le Cloud !
+          // Était synchronisé : si absent du Cloud et non modifié localement, il a été supprimé sur le Cloud
           if (!remoteMap.has(r.id)) {
             await DB.del(r.id);
+          } else {
+            // S'il existe sur le Cloud et en local, préserver la photo locale si la photo distante a été allégée
+            const remoteRec = remoteMap.get(r.id);
+            if (r.photo && (!remoteRec.photo || remoteRec.photo.startsWith('data:image/svg'))) {
+              finalDayMap.set(r.id, { ...remoteRec, photo: r.photo, synced: true });
+            }
           }
         }
       }
 
-      const mergedList = [...finalDayMap.values()].sort((a,b) => a.secs - b.secs);
+      let mergedList = [...finalDayMap.values()].sort((a,b) => a.secs - b.secs);
 
-      // Si le Cloud a besoin d'une mise à jour (nouvel élément local ou suppression tombstone)
-      if (hasLocalUnpushed || remoteNeedsUpdate || mergedList.length !== remote.list.length) {
+      // Si le Cloud a besoin d'une mise à jour (nouvel élément local, modification, suppression tombstone)
+      if (hasLocalChanges || remoteNeedsUpdate || mergedList.length !== remote.list.length) {
         let currentSha = remote.sha;
 
         if (mergedList.length === 0) {
@@ -1407,6 +1340,7 @@ const CloudSync = {
           }
         } else {
           for (let attempt = 0; attempt < 3; attempt++) {
+            mergedList = [...finalDayMap.values()].sort((a,b) => a.secs - b.secs);
             const contentB64 = utf8ToBase64(JSON.stringify(mergedList));
             const body = {
               message: `Sync pointages ${d} (${mergedList.length} présents)`,
@@ -1428,7 +1362,12 @@ const CloudSync = {
               if (refetch) {
                 currentSha = refetch.sha;
                 for (const rr of refetch.list) {
-                  if (!Tombstones.has(rr.id)) finalDayMap.set(rr.id, { ...rr, synced: true });
+                  if (!Tombstones.has(rr.id)) {
+                    const localRec = localForDay.find(x => x.id === rr.id);
+                    if (!localRec || localRec.synced) {
+                      finalDayMap.set(rr.id, { ...rr, synced: true });
+                    }
+                  }
                 }
               }
             } else if (putRes.status === 401) {
@@ -1441,14 +1380,9 @@ const CloudSync = {
         }
       }
 
+      // Mettre à jour la base locale avec les données consolidées
       for (const r of mergedList) {
         await DB.put({ ...r, synced: true });
-      }
-
-      for (const r of remote.list) {
-        if (Tombstones.has(r.id)) {
-          Tombstones.remove(r.id);
-        }
       }
 
       const remainingPending = (await DB.all()).filter(r => !r.synced).length;
@@ -1470,92 +1404,92 @@ const CloudSync = {
     }
   },
 
-  async syncRecentDays(numDays = 14) {
-    updateSyncStatus('🔄 Synchro récente…');
-    const today = nowDla().date;
-    const datesToSync = new Set();
-    datesToSync.add(today);
-
-    for (let i = 1; i <= numDays; i++) {
-      datesToSync.add(cutoffDate(i));
-    }
-
-    try {
-      const filesUrl = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
-      let res = await fetch(filesUrl, { headers: this.headers(true), cache: 'no-store' });
-      if (res.status === 401) {
-        res = await fetch(filesUrl, { headers: this.headers(false), cache: 'no-store' });
-      }
-      if (res.ok) {
-        const files = await res.json();
-        if (Array.isArray(files)) {
-          const cut = cutoffDate(numDays);
-          files.forEach(f => {
-            if (f.name.startsWith('pointages-') && f.name.endsWith('.json')) {
-              const d = f.name.replace('pointages-', '').replace('.json', '');
-              if (d >= cut) datesToSync.add(d);
-            }
-          });
-        }
-      }
-    } catch(e) {
-      console.warn('syncRecentDays file list warning:', e);
-    }
-
-    for (const d of datesToSync) {
-      await this.sync(d);
-    }
-    updateSyncStatus('✅ Synchro terminée', true);
-  },
-
-  async syncAllPending() {
-    try {
-      const allLocal = await DB.all();
-      const unsynced = allLocal.filter(r => !r.synced);
-      const dates = [...new Set(unsynced.map(r => r.date))];
+  syncRecentDays(numDays = 14) {
+    return this.enqueue(async () => {
+      updateSyncStatus('🔄 Synchro récente…');
       const today = nowDla().date;
-      if (!dates.includes(today)) dates.push(today);
-      for (const d of dates) {
-        await this.sync(d);
+      const datesToSync = new Set();
+      datesToSync.add(today);
+
+      for (let i = 1; i <= numDays; i++) {
+        datesToSync.add(cutoffDate(i));
       }
-    } catch(e) {
-      console.warn('syncAllPending error:', e);
-    }
+
+      try {
+        const filesUrl = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
+        let res = await fetch(filesUrl, { headers: this.headers(true), cache: 'no-store' });
+        if (res.ok) {
+          const files = await res.json();
+          if (Array.isArray(files)) {
+            const cut = cutoffDate(numDays);
+            files.forEach(f => {
+              if (f.name.startsWith('pointages-') && f.name.endsWith('.json')) {
+                const d = f.name.replace('pointages-', '').replace('.json', '');
+                if (d >= cut) datesToSync.add(d);
+              }
+            });
+          }
+        }
+      } catch(e) {
+        console.warn('syncRecentDays file list warning:', e);
+      }
+
+      for (const d of datesToSync) {
+        await this._doSync(d);
+      }
+      updateSyncStatus('✅ Synchro terminée', true);
+    });
   },
 
-  async pullAllFiles() {
-    updateSyncStatus('🔄 Synchro historique…');
-    const url = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
-    try {
-      let res = await fetch(url, { headers: this.headers(true), cache: 'no-store' });
-      if (res.status === 401) {
-        res = await fetch(url, { headers: this.headers(false), cache: 'no-store' });
-      }
-      if (!res.ok) return false;
-      const files = await res.json();
-      if (!Array.isArray(files)) return false;
-      const jsonFiles = files.filter(f => f.name.startsWith('pointages-') && f.name.endsWith('.json'));
-
-      const remoteDates = new Set(jsonFiles.map(f => f.name.replace('pointages-', '').replace('.json', '')));
-      const allLocal = await DB.all();
-      for (const r of allLocal) {
-        if (r.synced && !remoteDates.has(r.date)) {
-          await DB.del(r.id);
+  syncAllPending() {
+    return this.enqueue(async () => {
+      try {
+        const allLocal = await DB.all();
+        const unsynced = allLocal.filter(r => !r.synced);
+        const dates = [...new Set(unsynced.map(r => r.date))];
+        const today = nowDla().date;
+        if (!dates.includes(today)) dates.push(today);
+        for (const d of dates) {
+          await this._doSync(d);
         }
+      } catch(e) {
+        console.warn('syncAllPending error:', e);
       }
+    });
+  },
 
-      for (const f of jsonFiles) {
-        const d = f.name.replace('pointages-', '').replace('.json', '');
-        await this.sync(d);
+  pullAllFiles() {
+    return this.enqueue(async () => {
+      updateSyncStatus('🔄 Synchro historique…');
+      const url = `https://api.github.com/repos/${this.repo}/contents/data?t=${Date.now()}`;
+      try {
+        let res = await fetch(url, { headers: this.headers(true), cache: 'no-store' });
+        if (!res.ok) return false;
+        const files = await res.json();
+        if (!Array.isArray(files)) return false;
+        const jsonFiles = files.filter(f => f.name.startsWith('pointages-') && f.name.endsWith('.json'));
+
+        const remoteDates = new Set(jsonFiles.map(f => f.name.replace('pointages-', '').replace('.json', '')));
+        const allLocal = await DB.all();
+        for (const r of allLocal) {
+          if (r.synced && !remoteDates.has(r.date)) {
+            await DB.del(r.id);
+          }
+        }
+
+        for (const f of jsonFiles) {
+          const d = f.name.replace('pointages-', '').replace('.json', '');
+          await this._doSync(d);
+        }
+        updateSyncStatus('✅ Historique synchronisé', true);
+        backupToAndroidDevice();
+        if ($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
+        return true;
+      } catch(e) {
+        console.warn('pullAllFiles error:', e);
+        return false;
       }
-      updateSyncStatus('✅ Historique synchronisé', true);
-      backupToAndroidDevice();
-      if ($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
-      return true;
-    } catch(e) {
-      console.warn('pullAllFiles error:', e);
-      return false;
-    }
+    });
   }
 };
 
@@ -1583,7 +1517,9 @@ async function restoreFromAndroidDeviceIfEmpty() {
         if (backupJson && backupJson.trim().length > 10) {
           const list = JSON.parse(backupJson);
           if (Array.isArray(list)) {
-            for (const r of list) await DB.put(r);
+            for (const r of list) {
+              if (!Tombstones.has(r.id)) await DB.put(r);
+            }
             console.log(`[Backup] Restauré ${list.length} pointages.`);
           }
         }
@@ -2014,6 +1950,7 @@ $('#validate').onclick = async ()=>{
   const rec={id,name:S.name,date:t.date,time:t.time,secs:t.secs,late,
     lateMin: late ? Math.ceil((t.secs-CONFIG.DEADLINE_SECS)/60) : 0,
     photo:S.photo,capTs:S.capTs,savedTs:Date.now(),synced:false};
+  Tombstones.remove(id);
   try{ await DB.put(rec); }catch(e){ setErr('#e2',"Enregistrement impossible : l'espace de stockage est plein."); return; }
   refreshKnown();
   showResult(rec,false);
@@ -2148,7 +2085,6 @@ async function renderRank(withSync){
   $('#rdate').value = date;
   if(withSync){
     await CloudSync.sync(date);
-    try { await CloudSync.pullAllFiles(); } catch(e){}
   }
   const allRecs = await DB.all();
   const list = allRecs.filter(r => r.date === date).sort((a,b) => a.secs - b.secs);
@@ -2520,7 +2456,7 @@ async function renderManageList() {
 
   container.innerHTML = filtered.slice(0, 100).map(r => `
     <div class="row ${r.late ? 'late' : ''}" style="grid-template-columns:46px 1fr auto; gap:10px; margin-bottom:8px;">
-      <img src="${r.photo}" alt="" data-photo="${esc(r.photo)}" style="cursor:pointer;" title="Cliquer pour agrandir">
+      <img src="${r.photo || DEFAULT_AVATAR}" alt="" data-photo="${esc(r.photo || '')}" style="cursor:pointer;" title="Cliquer pour agrandir">
       <div style="min-width:0;">
         <span class="nm" style="font-size:0.95rem;">${esc(r.name)}</span>
         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px;">
@@ -2613,7 +2549,7 @@ $('#mitems').addEventListener('click', async e => {
       if (!rec) return;
       $('#edit-orig-id').value = rec.id;
       $('#edit-orig-date').value = rec.date;
-      $('#edit-photo').src = rec.photo;
+      $('#edit-photo').src = rec.photo || DEFAULT_AVATAR;
       $('#edit-name').value = rec.name;
       $('#edit-date').value = rec.date;
       $('#edit-time').value = rec.time;
@@ -2641,7 +2577,7 @@ $('#mitems').addEventListener('click', async e => {
   }
 
   const img = e.target.closest('img');
-  if (img && img.dataset.photo) {
+  if (img && img.dataset.photo && !img.dataset.photo.startsWith('data:image/svg')) {
     $('#dimg').src = img.dataset.photo;
     $('#dlg').showModal();
   }
@@ -2895,6 +2831,7 @@ if ($('#btn-check-update')) {
 }
 
 /* ============ Navigation ============ */
+let lastDirSyncTime = 0;
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   const v=b.dataset.v;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
@@ -2907,7 +2844,14 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
     }
   }
   if(v==='rank') { renderRank(); CloudSync.sync($('#rdate').value || nowDla().date).then(()=>renderRank()); }
-  if(v==='dir') { renderDir(); CloudSync.pullAllFiles().then(()=>renderDir()); }
+  if(v==='dir') {
+    renderDir();
+    const now = Date.now();
+    if (now - lastDirSyncTime > 45000) {
+      lastDirSyncTime = now;
+      CloudSync.sync(nowDla().date).then(() => renderDir());
+    }
+  }
   window.scrollTo(0,0);
 });
 
@@ -2922,13 +2866,17 @@ window.addEventListener('online', ()=>{
   });
 });
 
-// Synchro automatique périodique (toutes les 25 secondes)
+// Synchro automatique périodique (toutes les 30 secondes, mise en pause si modale ouverte)
 setInterval(()=>{
+  const anyModalOpen = ($('#dlg-edit-rec') && $('#dlg-edit-rec').open) ||
+                       ($('#dlg-rename-learner') && $('#dlg-rename-learner').open) ||
+                       ($('#dlg-add-learner') && $('#dlg-add-learner').open);
+  if (anyModalOpen) return;
   CloudSync.sync().then(()=>{
     if($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
     if($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
   }).catch(()=>{});
-}, 25000);
+}, 30000);
 
 if(window.AndroidBridge) document.body.classList.add('inapp');
 DB.init().then(async ()=>{
