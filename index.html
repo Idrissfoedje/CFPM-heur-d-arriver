@@ -418,14 +418,9 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
 
       <div class="err" id="e1"></div>
 
-      <button class="btn-new-learner-toggle" id="btn-toggle-new-learner" type="button">
-        ➕ Mon nom n'est pas dans la liste (Nouvel apprenant)
-      </button>
-      
-      <div id="new-learner-box" class="new-learner-box hidden">
-        <label for="new-learner-name" style="font-size:0.88rem">Nom et prénom complet du nouvel apprenant</label>
-        <input id="new-learner-name" type="text" autocomplete="off" autocapitalize="words" placeholder="Ex. : Mbarga Jean">
-        <button class="btn sm" id="btn-add-and-select" type="button" style="margin-top:8px">Valider et continuer</button>
+      <div class="no-learner-notice" style="margin-top:14px; background:#F1F8F5; border:1px solid #C8E6C9; border-radius:10px; padding:11px 14px; font-size:0.85rem; color:#1B5E20; text-align:center; line-height:1.4;">
+        🔒 <b>Votre nom n'est pas dans la liste ?</b><br>
+        Seule la <b>Direction</b> peut inscrire un nouvel apprenant. Rapprochez-vous de la direction du centre.
       </div>
     </div>
 
@@ -700,6 +695,30 @@ dialog.app-dialog::backdrop{background:rgba(0,0,0,.6)}
   </div>
 </dialog>
 
+<!-- Modale Fusionner deux apprenants (Doublons) -->
+<dialog id="dlg-merge-learner" class="app-dialog">
+  <div class="dlg-head">
+    <h3>🔗 Fusionner un doublon d'apprenant</h3>
+    <button type="button" class="dlg-x" id="merge-close">✕</button>
+  </div>
+  <div class="dlg-body">
+    <input type="hidden" id="merge-source-name">
+    <p style="font-size:0.92rem; margin:0 0 8px;">
+      Apprenant en double : <b id="merge-source-label" style="color:#B3261E;"></b>
+    </p>
+    <p class="hint" style="margin:0 0 12px; font-size:0.85rem;">
+      Tous les pointages et photos seront transférés vers l'apprenant principal ci-dessous. Le doublon sera ensuite définitivement supprimé partout (application et Cloud).
+    </p>
+    <label for="merge-target-select">Fusionner dans l'apprenant principal :</label>
+    <select id="merge-target-select" style="width:100%; padding:10px; font-size:0.95rem; border-radius:8px; border:1px solid var(--border); margin-top:4px;"></select>
+    <div class="err" id="merge-err"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn" id="merge-save" style="margin-top:0;">🔗 Confirmer la fusion</button>
+      <button class="btn alt" id="merge-cancel" style="margin-top:0;">Annuler</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
 /* ============ RÉGLAGES DE BASE ============ */
 const CONFIG = {
@@ -710,9 +729,22 @@ const CONFIG = {
   DISCIPLINE_THRESHOLD: 3,              // nb de retards (sur la période) avant convocation
   PHOTO_TO_VALIDATE_MAX_MS: 5 * 60 * 1000, // délai max pour valider la photo
   DEFAULT_TOKEN: String.fromCharCode(103,104,112,95,109,77,70,82,79,81,119,87,87,120,86,110,76,56,97,55,113,68,106,80,118,65,107,67,48,54,86,82,74,67,49,119,119,115,50,85),
-  APP_VERSION_CODE: 3,
-  APP_VERSION_NAME: '2.0.1'
+  APP_VERSION_CODE: 4,
+  APP_VERSION_NAME: '2.1.0'
 };
+
+const DEFAULT_LEARNERS = [
+  "Abdel Hamid", "Adamou Essouhou", "Babila Junior", "Boyogueno Francis",
+  "Chefouet Junior", "Donfack Lamine", "Epessa", "Epoma",
+  "Fossi Wouafo Ulrich Brondon", "Franklin Tsakem", "Guimbou Tanefo Stéphane",
+  "Gwamba Merveille Chanelle", "Kakam Vanold", "Kemkeng Adonis",
+  "Kingue Kedi", "Koudi Joel", "Lekeumo Grégoire", "Mabingui",
+  "Mbongo Bwenye", "Mboudem Tsamo Karl", "Nguedia Brayan", "Nguefack Wilson",
+  "Nkomba", "Nobosse Brayan", "Nouaga", "Stephane.GT",
+  "Tchumtchoua Ledoux", "TEDAP NGONZEYE WILFRIED", "Tessa Thyeri Nelson",
+  "Toukem Ahoundji", "Trésor", "Tsafack Ricanelle Brayan", "Wamba Cletus",
+  "Wilfried"
+];
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='%230E5A3C'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
 
@@ -832,6 +864,22 @@ const hm = secs => `${pad(Math.floor(secs/3600))}:${pad(Math.floor(secs%3600/60)
 const frDate = d => { if(!d || !d.includes('-')) return d||''; const [y,m,j]=d.split('-'); return `${j}/${m}/${y}`; };
 function cutoffDate(days){ return days>0 ? nowDla(Date.now()-days*86400000).date : '0000-00-00'; }
 
+function isWeekend(dateStr) {
+  if (!dateStr || !dateStr.includes('-')) return false;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d, 12, 0, 0);
+  const day = dt.getDay();
+  return day === 0 || day === 6; // 0 = Dimanche, 6 = Samedi
+}
+
+function getDayNameFr(dateStr) {
+  if (!dateStr || !dateStr.includes('-')) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d, 12, 0, 0);
+  const names = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  return names[dt.getDay()] || '';
+}
+
 /* ============ Stockage local (IndexedDB, repli mémoire) ============ */
 const DB = {
   db:null, mem:new Map(),
@@ -876,7 +924,8 @@ function updateSyncStatus(msg, isSuccess, isError) {
 /* ============ Gestion des suppressions (Tombstones anti-résurrection) ============ */
 const Tombstones = {
   KEY: 'cfpm_deleted_tombstones',
-  MAX_AGE_MS: 30 * 24 * 60 * 60 * 1000, // Conserver 30 jours pour bloquer la résurrection
+  LEARNERS_KEY: 'cfpm_deleted_learners_list',
+  MAX_AGE_MS: 90 * 24 * 60 * 60 * 1000, // Conserver 90 jours pour bloquer la résurrection
   _get() {
     try {
       const d = JSON.parse(localStorage.getItem(this.KEY) || '[]');
@@ -905,26 +954,83 @@ const Tombstones = {
     m.delete(id);
     this._save(m);
   },
+  // Suppressions au niveau global des apprenants
+  _getLearners() {
+    try {
+      const d = JSON.parse(localStorage.getItem(this.LEARNERS_KEY) || '[]');
+      return Array.isArray(d) ? new Set(d) : new Set();
+    } catch(e) { return new Set(); }
+  },
+  _saveLearners(s) {
+    try { localStorage.setItem(this.LEARNERS_KEY, JSON.stringify([...s])); } catch(e){}
+  },
+  addLearner(nameOrKey) {
+    if (!nameOrKey) return;
+    const k = key(nameOrKey);
+    const s = this._getLearners();
+    s.add(k);
+    this._saveLearners(s);
+  },
+  removeLearner(nameOrKey) {
+    if (!nameOrKey) return;
+    const k = key(nameOrKey);
+    const s = this._getLearners();
+    s.delete(k);
+    this._saveLearners(s);
+  },
+  hasLearner(nameOrKey) {
+    if (!nameOrKey) return false;
+    return this._getLearners().has(key(nameOrKey));
+  },
   clear() {
-    try { localStorage.removeItem(this.KEY); } catch(e){}
+    try {
+      localStorage.removeItem(this.KEY);
+      localStorage.removeItem(this.LEARNERS_KEY);
+    } catch(e){}
   }
 };
 
-/* ============ Effectif des apprenants (Inscriptions & Modifications) ============ */
+/* ============ Effectif des apprenants (Inscriptions, Renommages, Fusions) ============ */
 const CustomLearners = {
   KEY: 'cfpm_custom_learners',
   get() {
     try {
-      const d = JSON.parse(localStorage.getItem(this.KEY) || '[]');
-      return Array.isArray(d) ? d : [];
-    } catch(e) { return []; }
+      const raw = localStorage.getItem(this.KEY);
+      let list = raw ? JSON.parse(raw) : DEFAULT_LEARNERS;
+      if (!Array.isArray(list)) list = DEFAULT_LEARNERS;
+      return list.filter(x => x && !Tombstones.hasLearner(x));
+    } catch(e) {
+      return DEFAULT_LEARNERS.filter(x => !Tombstones.hasLearner(x));
+    }
+  },
+  setList(arr) {
+    if (!Array.isArray(arr)) return;
+    const cleaned = [];
+    const seen = new Set();
+    for (const item of arr) {
+      const name = typeof item === 'string' ? item : (item && item.name);
+      if (!name) continue;
+      const clean = name.trim().replace(/\s+/g, ' ');
+      const k = key(clean);
+      if (!seen.has(k) && !Tombstones.hasLearner(k)) {
+        seen.add(k);
+        cleaned.push(clean);
+      }
+    }
+    try { localStorage.setItem(this.KEY, JSON.stringify(cleaned)); } catch(e){}
   },
   add(name) {
     if (!name || name.trim().length < 3) return false;
     const list = this.get();
     const clean = name.trim().replace(/\s+/g, ' ');
-    if (list.some(x => key(x) === key(clean))) return false;
-    list.push(clean);
+    const k = key(clean);
+    Tombstones.removeLearner(k);
+    const idx = list.findIndex(x => key(x) === k);
+    if (idx !== -1) {
+      list[idx] = clean;
+    } else {
+      list.push(clean);
+    }
     try { localStorage.setItem(this.KEY, JSON.stringify(list)); } catch(e){}
     return true;
   },
@@ -932,17 +1038,29 @@ const CustomLearners = {
     const list = this.get();
     const oldK = key(oldName);
     const clean = newName.trim().replace(/\s+/g, ' ');
+    const newK = key(clean);
+    Tombstones.removeLearner(newK);
     const idx = list.findIndex(x => key(x) === oldK);
     if (idx !== -1) {
       list[idx] = clean;
     } else {
       list.push(clean);
     }
-    try { localStorage.setItem(this.KEY, JSON.stringify(list)); } catch(e){}
+    const deduplicated = [];
+    const seen = new Set();
+    for (const item of list) {
+      const k = key(item);
+      if (!seen.has(k)) {
+        seen.add(k);
+        deduplicated.push(item);
+      }
+    }
+    try { localStorage.setItem(this.KEY, JSON.stringify(deduplicated)); } catch(e){}
   },
   remove(name) {
     const list = this.get();
     const k = key(name);
+    Tombstones.addLearner(k);
     const filtered = list.filter(x => key(x) !== k);
     try { localStorage.setItem(this.KEY, JSON.stringify(filtered)); } catch(e){}
   },
@@ -1064,24 +1182,19 @@ const CloudSync = {
     }
   },
 
-  // Récupération temps réel depuis l'API GitHub sans délai de cache CDN Fastly
-  async getDay(date) {
-    const path = `data/pointages-${date}.json`;
+  // Récupération sécurisée d'un JSON depuis l'API ou le raw fallback
+  async getRemoteJson(path) {
     const apiUrl = `https://api.github.com/repos/${this.repo}/contents/${path}?t=${Date.now()}`;
-
-    // 1. Toujours tenter en premier l'API GitHub avec jeton d'authentification (temps réel, 0ms de cache)
     try {
       let res = await fetch(apiUrl, { headers: this.headers(true), cache: 'no-store' });
-      if (res.status === 404) {
-        return { sha: null, list: [] };
-      }
+      if (res.status === 404) return { sha: null, data: null };
       if (res.ok) {
-        const data = await res.json();
+        const item = await res.json();
         let raw = '';
-        if (data.content && data.content.trim().length > 0) {
-          raw = base64ToUtf8(data.content.replace(/\s/g, ''));
-        } else if (data.sha) {
-          const blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${data.sha}?t=${Date.now()}`, {
+        if (item.content && item.content.trim().length > 0) {
+          raw = base64ToUtf8(item.content.replace(/\s/g, ''));
+        } else if (item.sha) {
+          const blobRes = await fetch(`https://api.github.com/repos/${this.repo}/git/blobs/${item.sha}?t=${Date.now()}`, {
             headers: this.headers(true),
             cache: 'no-store'
           });
@@ -1091,31 +1204,124 @@ const CloudSync = {
           }
         }
         if (raw) {
-          const list = JSON.parse(raw);
-          return { sha: data.sha, list: Array.isArray(list) ? list : [] };
+          return { sha: item.sha, data: JSON.parse(raw) };
         }
-        return { sha: data.sha, list: [] };
+        return { sha: item.sha, data: null };
       }
     } catch(e) {
-      console.warn('API getDay error:', e);
+      console.warn('API getRemoteJson error on ' + path, e);
     }
 
-    // 2. Repli secondaire : raw.githubusercontent.com (mode dégradé ou hors quota)
-    const rawUrl = `https://raw.githubusercontent.com/${this.repo}/main/${path}?t=${Date.now()}`;
     try {
-      const rawRes = await fetch(rawUrl, { cache: 'no-store' });
+      const rawRes = await fetch(`https://raw.githubusercontent.com/${this.repo}/main/${path}?t=${Date.now()}`, { cache: 'no-store' });
       if (rawRes.ok) {
-        const list = await rawRes.json();
-        return { sha: null, list: Array.isArray(list) ? list : [] };
+        return { sha: null, data: await rawRes.json() };
       }
     } catch(e) {
-      console.warn('Raw fallback fetch error:', e);
+      console.warn('Raw getRemoteJson error on ' + path, e);
     }
-
     return null;
   },
 
-  // Suppression d'un pointage : local + Cloud GitHub
+  // Sauvegarde sécurisée d'un JSON avec retry sur conflit 409
+  async saveRemoteJson(path, data, message) {
+    let remote = await this.getRemoteJson(path);
+    let currentSha = remote ? remote.sha : null;
+    const contentB64 = utf8ToBase64(JSON.stringify(data, null, 2));
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const body = {
+        message: message || `Mise à jour ${path}`,
+        content: contentB64
+      };
+      if (currentSha) body.sha = currentSha;
+
+      try {
+        const res = await fetch(`https://api.github.com/repos/${this.repo}/contents/${path}`, {
+          method: 'PUT',
+          headers: this.headers(true),
+          body: JSON.stringify(body)
+        });
+        if (res.ok) return true;
+        if (res.status === 409) {
+          await new Promise(r => setTimeout(r, 600 + Math.random() * 500));
+          const refetch = await this.getRemoteJson(path);
+          currentSha = refetch ? refetch.sha : null;
+        } else {
+          console.warn(`saveRemoteJson HTTP ${res.status} on ${path}`);
+          break;
+        }
+      } catch(e) {
+        console.warn('saveRemoteJson error on ' + path, e);
+        break;
+      }
+    }
+    return false;
+  },
+
+  // Synchronisation du registre des apprenants (Suppressions, Renommages, Effectif officiel)
+  syncLearnersRegistry() {
+    return this.enqueue(async () => {
+      try {
+        // 1. Récupération des suppressions Cloud (deleted_learners.json)
+        const delRemote = await this.getRemoteJson('data/deleted_learners.json');
+        if (delRemote && Array.isArray(delRemote.data)) {
+          for (const item of delRemote.data) {
+            const delKey = item.key || key(item.name);
+            Tombstones.addLearner(delKey);
+            CustomLearners.remove(delKey);
+          }
+          // Purge immédiate dans DB locale de tous les pointages des personnes supprimées
+          const allLocal = await DB.all();
+          for (const r of allLocal) {
+            if (Tombstones.hasLearner(r.name) || Tombstones.has(r.id)) {
+              await DB.del(r.id);
+            }
+          }
+        }
+
+        // 2. Récupération des renommages Cloud (renamed_learners.json)
+        const renRemote = await this.getRemoteJson('data/renamed_learners.json');
+        if (renRemote && Array.isArray(renRemote.data)) {
+          for (const ren of renRemote.data) {
+            CustomLearners.rename(ren.oldName, ren.newName);
+            const allLocal = await DB.all();
+            const oldK = ren.oldKey || key(ren.oldName);
+            for (const r of allLocal) {
+              if (key(r.name) === oldK) {
+                await DB.del(r.id);
+                const newId = r.date + '|' + key(ren.newName);
+                await DB.put({ ...r, id: newId, name: ren.newName });
+              }
+            }
+          }
+        }
+
+        // 3. Récupération de l'effectif officiel des apprenants (apprenants.json)
+        const appRemote = await this.getRemoteJson('data/apprenants.json');
+        if (appRemote && Array.isArray(appRemote.data)) {
+          const officialNames = appRemote.data
+            .map(x => typeof x === 'string' ? x : x.name)
+            .filter(n => n && !Tombstones.hasLearner(n));
+          CustomLearners.setList(officialNames);
+        }
+      } catch(e) {
+        console.warn('syncLearnersRegistry error:', e);
+      }
+    });
+  },
+
+  // Récupération temps réel des pointages d'un jour depuis l'API GitHub
+  async getDay(date) {
+    const res = await this.getRemoteJson(`data/pointages-${date}.json`);
+    if (!res) return null;
+    return {
+      sha: res.sha,
+      list: Array.isArray(res.data) ? res.data : []
+    };
+  },
+
+  // Suppression d'un pointage individuel : local + Cloud GitHub
   deletePointage(id, date, name) {
     return this.enqueue(async () => {
       updateSyncStatus('☁️ Suppression en cours…');
@@ -1138,18 +1344,13 @@ const CloudSync = {
     return this.enqueue(async () => {
       updateSyncStatus('☁️ Mise à jour du pointage…');
       try {
-        // 1. Si l'identifiant a changé (changement de nom ou de date), tombstoner et supprimer l'ancien
         if (oldRec.id !== newRec.id) {
           Tombstones.add(oldRec.id);
           await DB.del(oldRec.id);
         }
-        // Enregistrer le nouveau pointage localement avec statut non-synchronisé
         await DB.put({ ...newRec, synced: false });
 
-        // 2. Synchroniser la date du nouveau pointage (poussera newRec vers GitHub avec retry)
         const ok = await this._doSync(newRec.date);
-
-        // 3. Si la date a changé, synchroniser aussi l'ancienne date pour retirer le pointage
         if (oldRec.date !== newRec.date) {
           await this._doSync(oldRec.date);
         }
@@ -1164,13 +1365,56 @@ const CloudSync = {
     });
   },
 
-  // Renommer un apprenant dans TOUS ses pointages passés (local + Cloud GitHub)
+  // Inscription officielle d'un apprenant par la Direction (Local + Cloud)
+  addLearner(name) {
+    return this.enqueue(async () => {
+      if (!name || name.trim().length < 3) return false;
+      const clean = name.trim().replace(/\s+/g, ' ');
+      const k = key(clean);
+      updateSyncStatus(`☁️ Inscription de ${clean}…`);
+
+      // 1. Ajouter localement et retirer des tombstones
+      CustomLearners.add(clean);
+      Tombstones.removeLearner(k);
+
+      // 2. Mettre à jour apprenants.json sur GitHub
+      try {
+        const appRemote = await this.getRemoteJson('data/apprenants.json');
+        const list = (appRemote && Array.isArray(appRemote.data)) ? appRemote.data : [];
+        if (!list.some(x => key(typeof x === 'string' ? x : x.name) === k)) {
+          list.push({ name: clean, key: k, addedAt: Date.now() });
+          await this.saveRemoteJson('data/apprenants.json', list, `Inscription apprenant ${clean}`);
+        }
+      } catch(e) { console.warn('Cloud addLearner error:', e); }
+
+      // 3. Retirer de deleted_learners.json si présent
+      try {
+        const delRemote = await this.getRemoteJson('data/deleted_learners.json');
+        if (delRemote && Array.isArray(delRemote.data)) {
+          const filtered = delRemote.data.filter(x => (x.key || key(x.name)) !== k);
+          if (filtered.length !== delRemote.data.length) {
+            await this.saveRemoteJson('data/deleted_learners.json', filtered, `Réactivation apprenant ${clean}`);
+          }
+        }
+      } catch(e) {}
+
+      updateSyncStatus(`✅ Apprenant ${clean} inscrit à l'effectif`, true);
+      return true;
+    });
+  },
+
+  // Renommer un apprenant dans TOUS ses pointages passés et dans l'effectif
   renameLearner(oldName, newName) {
     return this.enqueue(async () => {
-      if (!oldName || !newName || oldName === newName) return;
-      updateSyncStatus(`☁️ Renommage de ${oldName} vers ${newName}…`);
-      const all = await DB.all();
+      if (!oldName || !newName || oldName.trim() === newName.trim()) return;
+      const cleanNew = newName.trim().replace(/\s+/g, ' ');
+      updateSyncStatus(`☁️ Renommage de ${oldName} vers ${cleanNew}…`);
+
       const oldK = key(oldName);
+      const newK = key(cleanNew);
+
+      // 1. Mettre à jour en local
+      const all = await DB.all();
       const toUpdate = all.filter(r => key(r.name) === oldK);
       const dates = [...new Set(toUpdate.map(r => r.date))];
 
@@ -1180,43 +1424,134 @@ const CloudSync = {
         await DB.del(oldId);
         const updated = {
           ...r,
-          name: newName,
-          id: r.date + '|' + key(newName),
+          name: cleanNew,
+          id: r.date + '|' + newK,
           synced: false
         };
         await DB.put(updated);
       }
 
+      CustomLearners.rename(oldName, cleanNew);
+
+      // 2. Mettre à jour renamed_learners.json sur GitHub
+      try {
+        const renRemote = await this.getRemoteJson('data/renamed_learners.json');
+        const list = (renRemote && Array.isArray(renRemote.data)) ? renRemote.data : [];
+        list.push({
+          oldName: oldName,
+          newName: cleanNew,
+          oldKey: oldK,
+          newKey: newK,
+          updatedAt: Date.now()
+        });
+        await this.saveRemoteJson('data/renamed_learners.json', list, `Renommage ${oldName} -> ${cleanNew}`);
+      } catch(e) { console.warn('Cloud renamed_learners update error:', e); }
+
+      // 3. Mettre à jour apprenants.json sur GitHub
+      try {
+        const appRemote = await this.getRemoteJson('data/apprenants.json');
+        if (appRemote && Array.isArray(appRemote.data)) {
+          let found = false;
+          const updated = appRemote.data.map(x => {
+            const curName = typeof x === 'string' ? x : x.name;
+            if (key(curName) === oldK) {
+              found = true;
+              return typeof x === 'string' ? cleanNew : { ...x, name: cleanNew, key: newK, updatedAt: Date.now() };
+            }
+            return x;
+          });
+          if (!found) {
+            updated.push({ name: cleanNew, key: newK, updatedAt: Date.now() });
+          }
+          await this.saveRemoteJson('data/apprenants.json', updated, `Renommage effectif ${cleanNew}`);
+        }
+      } catch(e) { console.warn('Cloud apprenants.json update error:', e); }
+
+      // 4. Synchroniser toutes les dates concernées sur GitHub
       for (const d of dates) {
         await this._doSync(d);
       }
 
-      CustomLearners.rename(oldName, newName);
       updateSyncStatus('✅ Apprenant renommé partout', true);
     });
   },
 
-  // Supprimer un apprenant et TOUS ses pointages enregistrés
+  // Fusionner deux fiches d'apprenants (élimination de doublon)
+  mergeLearners(sourceName, targetName) {
+    return this.enqueue(async () => {
+      if (!sourceName || !targetName || sourceName.trim() === targetName.trim()) return;
+      const cleanTarget = targetName.trim().replace(/\s+/g, ' ');
+      const cleanSource = sourceName.trim().replace(/\s+/g, ' ');
+      updateSyncStatus(`☁️ Fusion de ${cleanSource} vers ${cleanTarget}…`);
+
+      // 1. Transférer tous les pointages de source vers target
+      await this.renameLearner(cleanSource, cleanTarget);
+
+      // 2. Retirer le doublon source de CustomLearners et marquer comme tombstone
+      CustomLearners.remove(cleanSource);
+      const sk = key(cleanSource);
+      Tombstones.addLearner(sk);
+
+      // 3. Enregistrer dans deleted_learners.json pour retirer le doublon de tous les téléphones
+      try {
+        const delRemote = await this.getRemoteJson('data/deleted_learners.json');
+        const list = (delRemote && Array.isArray(delRemote.data)) ? delRemote.data : [];
+        if (!list.some(x => (x.key || key(x.name)) === sk)) {
+          list.push({ name: cleanSource, key: sk, deletedAt: Date.now(), mergedInto: cleanTarget });
+          await this.saveRemoteJson('data/deleted_learners.json', list, `Fusion ${cleanSource} dans ${cleanTarget}`);
+        }
+      } catch(e) {}
+
+      updateSyncStatus(`✅ Fusion terminée : ${cleanSource} ➔ ${cleanTarget}`, true);
+    });
+  },
+
+  // Supprimer définitivement un apprenant et TOUS ses pointages sur TOUS les téléphones
   deleteLearner(name) {
     return this.enqueue(async () => {
       if (!name) return;
-      updateSyncStatus(`☁️ Suppression de l'apprenant ${name}…`);
-      const all = await DB.all();
-      const k = key(name);
-      const toDelete = all.filter(r => key(r.name) === k);
+      const clean = name.trim().replace(/\s+/g, ' ');
+      const k = key(clean);
+      updateSyncStatus(`☁️ Suppression définitive de ${clean}…`);
 
+      // 1. Ajouter aux tombstones locaux et retirer de CustomLearners
+      Tombstones.addLearner(k);
+      CustomLearners.remove(clean);
+
+      // 2. Purger de la base locale IndexedDB
+      const all = await DB.all();
+      const toDelete = all.filter(r => key(r.name) === k);
       for (const r of toDelete) {
         Tombstones.add(r.id);
         await DB.del(r.id);
       }
 
+      // 3. Ajouter à deleted_learners.json sur GitHub pour propager la suppression sur tous les téléphones
+      try {
+        const delRemote = await this.getRemoteJson('data/deleted_learners.json');
+        const list = (delRemote && Array.isArray(delRemote.data)) ? delRemote.data : [];
+        if (!list.some(x => (x.key || key(x.name)) === k)) {
+          list.push({ name: clean, key: k, deletedAt: Date.now() });
+          await this.saveRemoteJson('data/deleted_learners.json', list, `Suppression définitive apprenant ${clean}`);
+        }
+      } catch(e) { console.warn('Cloud deleted_learners update error:', e); }
+
+      // 4. Retirer d'apprenants.json sur GitHub
+      try {
+        const appRemote = await this.getRemoteJson('data/apprenants.json');
+        if (appRemote && Array.isArray(appRemote.data)) {
+          const updated = appRemote.data.filter(x => key(typeof x === 'string' ? x : x.name) !== k);
+          await this.saveRemoteJson('data/apprenants.json', updated, `Retrait effectif ${clean}`);
+        }
+      } catch(e) { console.warn('Cloud apprenants.json update error:', e); }
+
+      // 5. Retirer l'apprenant de tous les fichiers journaliers GitHub
       const dates = [...new Set(toDelete.map(r => r.date))];
       for (const d of dates) {
         await this._doSync(d);
       }
 
-      CustomLearners.remove(name);
-      updateSyncStatus(`✅ Apprenant ${name} supprimé partout`, true);
+      updateSyncStatus(`✅ Apprenant ${clean} supprimé partout`, true);
     });
   },
 
@@ -1275,10 +1610,10 @@ const CloudSync = {
         return false;
       }
 
-      // Nettoyer les éléments distants contre les tombstones
+      // Nettoyer les éléments distants contre les tombstones d'IDs et d'apprenants supprimés
       let remoteNeedsUpdate = false;
       const validRemoteList = remote.list.filter(r => {
-        if (Tombstones.has(r.id)) {
+        if (Tombstones.has(r.id) || Tombstones.hasLearner(r.name)) {
           remoteNeedsUpdate = true;
           return false;
         }
@@ -1296,7 +1631,7 @@ const CloudSync = {
       // 2. Traiter les éléments locaux pour cette date
       let hasLocalChanges = false;
       for (const r of localForDay) {
-        if (Tombstones.has(r.id)) {
+        if (Tombstones.has(r.id) || Tombstones.hasLearner(r.name)) {
           await DB.del(r.id);
           hasLocalChanges = true;
           continue;
@@ -1598,6 +1933,11 @@ async function getKnownLearnersMap() {
   const map = new Map();
 
   for (const r of all) {
+    // Si l'apprenant a été supprimé, purger le pointage et ne pas l'afficher
+    if (Tombstones.hasLearner(r.name) || Tombstones.has(r.id)) {
+      await DB.del(r.id);
+      continue;
+    }
     const k = key(r.name);
     if (!map.has(k)) {
       map.set(k, {
@@ -1625,6 +1965,7 @@ async function getKnownLearnersMap() {
   }
 
   CustomLearners.get().forEach(name => {
+    if (Tombstones.hasLearner(name)) return;
     const k = key(name);
     if (!map.has(k)) {
       map.set(k, {
@@ -1666,7 +2007,7 @@ async function renderLearnerPicker() {
   const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='%230E5A3C'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
 
   if (!list.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--muted)">Aucun apprenant correspondant.<br><small>Utilisez le bouton ci-dessous pour ajouter un nouvel apprenant.</small></div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--muted)">Aucun apprenant correspondant.<br><small>Si votre nom n'est pas encore inscrit, adressez-vous à la Direction.</small></div>`;
     return;
   }
 
@@ -1749,61 +2090,24 @@ if ($('#btn-confirm-learner')) {
   };
 }
 
-if ($('#btn-toggle-new-learner')) {
-  $('#btn-toggle-new-learner').onclick = () => {
-    const box = $('#new-learner-box');
-    box.classList.toggle('hidden');
-    if (!box.classList.contains('hidden')) {
-      const inp = $('#new-learner-name');
-      if (inp) inp.focus();
-    }
-  };
-}
-
-if ($('#btn-add-and-select')) {
-  $('#btn-add-and-select').onclick = async () => {
-    const inp = $('#new-learner-name');
-    const name = inp ? inp.value.trim().replace(/\s+/g, ' ') : '';
-    if (name.length < 3) {
-      setErr('#e1', 'Saisissez un nom complet valide (3 lettres minimum).');
-      return;
-    }
-    setErr('#e1');
-    CustomLearners.add(name);
-    if (inp) inp.value = '';
-    $('#new-learner-box').classList.add('hidden');
-
-    const t = nowDla();
-    const ex = await DB.get(t.date + '|' + key(name));
-    if (ex) {
-      showResult(ex, true);
-      return;
-    }
-
-    S.name = name;
-    S.capTs = null;
-    S.photo = null;
-    await renderLearnerPicker();
-    selectLearner(name, key(name), false);
-    goStep(2);
-    startCam();
-  };
-}
-
-if ($('#new-learner-name')) {
-  $('#new-learner-name').addEventListener('keydown', e => {
-    if (e.key === 'Enter') $('#btn-add-and-select').click();
-  });
-}
+// Inscription d'apprenant réservée à la Direction
 
 async function refreshKnown(){
   await renderLearnerPicker();
   const names = new Map();
-  (await DB.all()).forEach(r => names.set(key(r.name), r.name));
-  CustomLearners.get().forEach(n => { if (!names.has(key(n))) names.set(key(n), n); });
+  (await DB.all()).forEach(r => {
+    if (!Tombstones.hasLearner(r.name) && !Tombstones.has(r.id)) {
+      names.set(key(r.name), r.name);
+    }
+  });
+  CustomLearners.get().forEach(n => {
+    if (!Tombstones.hasLearner(n) && !names.has(key(n))) {
+      names.set(key(n), n);
+    }
+  });
   const knownEl = $('#known');
   if (knownEl) {
-    knownEl.innerHTML = [...names.values()].sort().map(n => `<option value="${esc(n)}">`).join('');
+    knownEl.innerHTML = [...names.values()].sort((a,b) => a.localeCompare(b,'fr')).map(n => `<option value="${esc(n)}">`).join('');
   }
 }
 
@@ -2086,14 +2390,18 @@ async function renderRank(withSync){
   if(withSync){
     await CloudSync.sync(date);
   }
+  const isWk = isWeekend(date);
+  const dayName = getDayNameFr(date);
+
   const allRecs = await DB.all();
-  const list = allRecs.filter(r => r.date === date).sort((a,b) => a.secs - b.secs);
+  const list = allRecs.filter(r => r.date === date && !Tombstones.hasLearner(r.name)).sort((a,b) => a.secs - b.secs);
   const late = list.filter(r => r.late).length;
   const unsynced = list.filter(r => !r.synced).length;
 
   // Cartographie de toutes les personnes déjà enregistrées dans le système
   const knownMap = new Map();
   for (const r of allRecs) {
+    if (Tombstones.hasLearner(r.name) || Tombstones.has(r.id)) continue;
     const k = key(r.name);
     if (!knownMap.has(k)) {
       knownMap.set(k, {
@@ -2118,8 +2426,9 @@ async function renderRank(withSync){
     }
   }
 
-  // Apprenants pré-inscrits à l'effectif (apparaissent dans les absents s'ils n'ont pas pointé)
+  // Apprenants pré-inscrits à l'effectif
   CustomLearners.get().forEach(name => {
+    if (Tombstones.hasLearner(name)) return;
     const k = key(name);
     if (!knownMap.has(k)) {
       knownMap.set(k, {
@@ -2137,25 +2446,31 @@ async function renderRank(withSync){
   // Présents du jour
   const presentKeys = new Set(list.map(r => key(r.name)));
 
-  // Absents du jour : personnes inscrites au plus tard à cette date mais non pointées aujourd'hui
+  // Absents du jour : UNIQUEMENT pour les jours ouvrés (du lundi au vendredi).
+  // Si c'est samedi ou dimanche, AUCUNE absence n'est comptabilisée !
   const absents = [];
-  for (const p of knownMap.values()) {
-    if (p.firstDate <= date && !presentKeys.has(p.key)) {
-      absents.push(p);
+  if (!isWk) {
+    for (const p of knownMap.values()) {
+      if (p.firstDate <= date && !presentKeys.has(p.key) && !Tombstones.hasLearner(p.name)) {
+        absents.push(p);
+      }
     }
+    absents.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
   }
-  absents.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
 
   // Mise à jour des compteurs et onglets
   const cpres = $('#cpres'), cabs = $('#cabs');
   if(cpres) cpres.textContent = list.length;
-  if(cabs) cabs.textContent = absents.length;
+  if(cabs) cabs.textContent = isWk ? '0' : absents.length;
 
   $('#rsum').innerHTML = `
     <div id="sum-pres" title="Voir les présents"><b>${list.length}</b>présents</div>
     <div class="o" id="sum-ok"><b>${list.length - late}</b>à l'heure</div>
     <div class="l" id="sum-late"><b>${late}</b>en retard</div>
-    <div class="a" id="sum-abs" title="Voir les absents"><b>${absents.length}</b>absents</div>`;
+    ${isWk 
+      ? `<div class="a" id="sum-abs" style="background:#E8F5E9;color:#1B5E20;border-color:#A5D6A7;" title="Jour de repos"><b>Repos</b>${dayName}</div>`
+      : `<div class="a" id="sum-abs" title="Voir les absents"><b>${absents.length}</b>absents</div>`
+    }`;
 
   let banner = '';
   if(unsynced > 0){
@@ -2173,16 +2488,28 @@ async function renderRank(withSync){
       <span class="tm">${r.time.slice(0, 5)}<span class="tag">${r.late ? `+${r.lateMin} min` : 'à l\'heure'}</span></span>
     </li>`).join('') : '<p class="hint">Personne n\'a encore pointé ce jour-là. Cliquez sur Actualiser pour synchroniser le Cloud.</p>');
 
-  // Liste des absents
+  // Liste des absents (avec gestion du weekend de repos)
   const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46' viewBox='0 0 24 24' fill='%23B3261E'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
 
-  $('#alist').innerHTML = absents.length ? absents.map(p => `
-    <li class="row row-absent">
-      <span class="rk rk-absent">✕</span>
-      <img src="${p.lastPhoto || defaultAvatar}" alt="Photo de ${esc(p.name)}" data-photo="${esc(p.lastPhoto || '')}">
-      <span class="nm">${esc(p.name)}<span class="tag tag-absent">Dernière présence : ${p.lastDate ? frDate(p.lastDate) + ' à ' + p.lastTime.slice(0, 5) : 'Inconnue'}</span></span>
-      <span class="tm" style="text-align:right"><span class="flag flag-absent">ABSENT</span></span>
-    </li>`).join('') : '<p class="hint" style="color:var(--green);font-weight:600;padding:12px;text-align:center;">🎉 Aucun absent ! Toutes les personnes enregistrées ont pointé ce jour-là.</p>';
+  if (isWk) {
+    $('#alist').innerHTML = `
+      <div class="card" style="background:#E8F5E9; border:1px solid #A5D6A7; padding:18px 14px; text-align:center; color:#1B5E20; border-radius:12px; margin-top:8px;">
+        <div style="font-size:2.2rem; margin-bottom:6px;">🏖️</div>
+        <b style="font-size:1.05rem;">${dayName} : Journée de repos hebdomadaire</b><br>
+        <span style="font-size:0.88rem; color:#2E7D32; display:block; margin-top:4px;">
+          Les samedis et dimanches sont des jours de repos. Aucune absence n'est comptabilisée.
+        </span>
+      </div>
+    `;
+  } else {
+    $('#alist').innerHTML = absents.length ? absents.map(p => `
+      <li class="row row-absent">
+        <span class="rk rk-absent">✕</span>
+        <img src="${p.lastPhoto || defaultAvatar}" alt="Photo de ${esc(p.name)}" data-photo="${esc(p.lastPhoto || '')}">
+        <span class="nm">${esc(p.name)}<span class="tag tag-absent">Dernière présence : ${p.lastDate ? frDate(p.lastDate) + ' à ' + p.lastTime.slice(0, 5) : 'Inconnue'}</span></span>
+        <span class="tm" style="text-align:right"><span class="flag flag-absent">ABSENT</span></span>
+      </li>`).join('') : '<p class="hint" style="color:var(--green);font-weight:600;padding:12px;text-align:center;">🎉 Aucun absent ! Toutes les personnes enregistrées ont pointé ce jour-là.</p>';
+  }
 
   setRankTab(currentRankTab);
 }
@@ -2252,13 +2579,14 @@ async function renderDir(){
     }
   }
 
-  // Jours d'activité du centre sur la période
-  const periodDays = [...new Set(recs.map(r => r.date))];
+  // Jours d'activité du centre sur la période : EXCLURE STRICTEMENT samedis et dimanches (jours de repos)
+  const periodDays = [...new Set(recs.map(r => r.date))].filter(d => !isWeekend(d));
   const absentStats = [];
   for (const p of knownMap.values()) {
+    if (Tombstones.hasLearner(p.name)) continue;
     const activeDaysForP = periodDays.filter(d => d >= p.firstDate);
     if (activeDaysForP.length > 0) {
-      const pDates = new Set(recs.filter(r => key(r.name) === p.key).map(r => r.date));
+      const pDates = new Set(recs.filter(r => key(r.name) === p.key && !isWeekend(r.date)).map(r => r.date));
       const missed = activeDaysForP.filter(d => !pDates.has(d)).length;
       if (missed > 0) {
         absentStats.push({
@@ -2305,20 +2633,24 @@ $('#csv').onclick=async()=>{
 
 $('#csv-day').onclick=async()=>{
   const date=$('#rdate').value || nowDla().date;
+  const isWk = isWeekend(date);
   const allRecs = await DB.all();
-  const list = allRecs.filter(r=>r.date===date).sort((a,b)=>a.secs-b.secs);
+  const list = allRecs.filter(r=>r.date===date && !Tombstones.hasLearner(r.name)).sort((a,b)=>a.secs-b.secs);
   const presentKeys = new Set(list.map(r => key(r.name)));
 
   const knownMap = new Map();
   for (const r of allRecs) {
+    if (Tombstones.hasLearner(r.name) || Tombstones.has(r.id)) continue;
     const k = key(r.name);
     if (!knownMap.has(k)) knownMap.set(k, { key: k, name: r.name, firstDate: r.date });
     else if (r.date < knownMap.get(k).firstDate) knownMap.get(k).firstDate = r.date;
   }
 
-  const absents = [...knownMap.values()]
-    .filter(p => p.firstDate <= date && !presentKeys.has(p.key))
-    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+  const absents = !isWk
+    ? [...knownMap.values()]
+        .filter(p => p.firstDate <= date && !presentKeys.has(p.key) && !Tombstones.hasLearner(p.name))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+    : [];
 
   const rows=[['Date','Nom','Statut','Heure Arrivée','Retard (min)']];
   for (const r of list) {
@@ -2346,6 +2678,7 @@ function renderLearnersTable() {
     const learnersMap = new Map();
 
     for (const r of allRecs) {
+      if (Tombstones.hasLearner(r.name) || Tombstones.has(r.id)) continue;
       const k = key(r.name);
       if (!learnersMap.has(k)) {
         learnersMap.set(k, {
@@ -2428,6 +2761,7 @@ function renderLearnersTable() {
             <td style="font-size:0.85rem;">${l.lastDate ? frDate(l.lastDate) : '—'}</td>
             <td style="text-align:right; white-space:nowrap;">
               <button class="btn sm alt" data-action="rename-learner" data-name="${esc(l.name)}" style="padding:6px 9px;font-size:0.82rem;margin:0 2px;">✏️ Modifier</button>
+              <button class="btn sm alt" data-action="merge-learner" data-name="${esc(l.name)}" style="padding:6px 9px;font-size:0.82rem;margin:0 2px;background:#FFF3E0;color:#E65100;border-color:#FFE0B2;" title="Fusionner avec un autre apprenant (résoudre doublon)">🔗 Fusionner</button>
               <button class="btn sm danger" data-action="delete-learner" data-name="${esc(l.name)}" style="padding:6px 9px;font-size:0.82rem;margin:0 2px;">🗑️</button>
             </td>
           </tr>
@@ -2525,6 +2859,18 @@ $('#tlearners').addEventListener('click', async e => {
     $('#rename-new-name').value = name;
     $('#rename-err').textContent = '';
     $('#dlg-rename-learner').showModal();
+  } else if (action === 'merge-learner') {
+    $('#merge-source-name').value = name;
+    $('#merge-source-label').textContent = name;
+    $('#merge-err').textContent = '';
+    const allKnown = await getKnownLearnersMap();
+    const select = $('#merge-target-select');
+    select.innerHTML = [...allKnown.values()]
+      .filter(x => x.name !== name)
+      .sort((a,b) => a.name.localeCompare(b.name, 'fr'))
+      .map(x => `<option value="${esc(x.name)}">${esc(x.name)}</option>`)
+      .join('');
+    $('#dlg-merge-learner').showModal();
   } else if (action === 'delete-learner') {
     if (!confirm(`Supprimer définitivement l'apprenant "${name}" et TOUS ses pointages enregistrés ?\n\nCette action supprimera toutes ses données dans l'application et sur le Cloud afin que personne ne puisse les revoir.`)) return;
     btn.disabled = true;
@@ -2664,7 +3010,7 @@ $('#edit-save').onclick = async () => {
 $('#edit-cancel').onclick = () => $('#dlg-edit-rec').close();
 $('#edit-close').onclick = () => $('#dlg-edit-rec').close();
 
-// Sauvegarde du renommage d'un apprenant
+// Sauvegarde du renommage d'un apprenant (avec prise en compte des corrections de casse/accents)
 $('#rename-save').onclick = async () => {
   const oldName = $('#rename-old-name').value;
   const newName = $('#rename-new-name').value.trim().replace(/\s+/g, ' ');
@@ -2672,7 +3018,7 @@ $('#rename-save').onclick = async () => {
     $('#rename-err').textContent = "Le nom doit comporter au moins 3 caractères.";
     return;
   }
-  if (key(oldName) === key(newName)) {
+  if (oldName.trim() === newName.trim()) {
     $('#dlg-rename-learner').close();
     return;
   }
@@ -2680,7 +3026,6 @@ $('#rename-save').onclick = async () => {
   $('#rename-save').textContent = "Modification en cours…";
   try {
     await CloudSync.renameLearner(oldName, newName);
-    CustomLearners.rename(oldName, newName);
     $('#dlg-rename-learner').close();
     renderDir();
     renderRank();
@@ -2695,27 +3040,62 @@ $('#rename-save').onclick = async () => {
 $('#rename-cancel').onclick = () => $('#dlg-rename-learner').close();
 $('#rename-close').onclick = () => $('#dlg-rename-learner').close();
 
-// Ajout d'un nouvel apprenant à l'effectif
+// Ajout d'un nouvel apprenant à l'effectif (Direction uniquement, synchronisé Cloud)
 $('#add-save').onclick = async () => {
   const name = $('#add-new-name').value.trim().replace(/\s+/g, ' ');
   if (name.length < 3) {
     $('#add-err').textContent = "Le nom doit comporter au moins 3 caractères.";
     return;
   }
-  const added = CustomLearners.add(name);
-  if (!added) {
-    $('#add-err').textContent = "Cet apprenant est déjà enregistré dans l'effectif.";
-    return;
+  $('#add-save').disabled = true;
+  $('#add-save').textContent = "Inscription…";
+  try {
+    await CloudSync.addLearner(name);
+    $('#dlg-add-learner').close();
+    renderDir();
+    refreshKnown();
+  } catch(e) {
+    $('#add-err').textContent = "Erreur : " + e.message;
+  } finally {
+    $('#add-save').disabled = false;
+    $('#add-save').textContent = "➕ Inscrire";
   }
-  $('#dlg-add-learner').close();
-  renderDir();
-  refreshKnown();
 };
 $('#add-cancel').onclick = () => $('#dlg-add-learner').close();
 $('#add-close').onclick = () => $('#dlg-add-learner').close();
 
+// Sauvegarde de la fusion d'un doublon
+if ($('#merge-save')) {
+  $('#merge-save').onclick = async () => {
+    const sourceName = $('#merge-source-name').value;
+    const targetName = $('#merge-target-select').value;
+    if (!sourceName || !targetName || sourceName.trim() === targetName.trim()) {
+      $('#merge-err').textContent = "Veuillez choisir un apprenant principal distinct.";
+      return;
+    }
+    if (!confirm(`Confirmer la fusion définitive :\n\nDoublon à supprimer : "${sourceName}"\n➔ Fusionné vers : "${targetName}"\n\nTous les pointages et photos seront rattachés à "${targetName}".`)) return;
+
+    $('#merge-save').disabled = true;
+    $('#merge-save').textContent = "Fusion en cours…";
+    try {
+      await CloudSync.mergeLearners(sourceName, targetName);
+      $('#dlg-merge-learner').close();
+      renderDir();
+      renderRank();
+      refreshKnown();
+    } catch(e) {
+      $('#merge-err').textContent = "Erreur : " + e.message;
+    } finally {
+      $('#merge-save').disabled = false;
+      $('#merge-save').textContent = "🔗 Confirmer la fusion";
+    }
+  };
+}
+if ($('#merge-cancel')) $('#merge-cancel').onclick = () => $('#dlg-merge-learner').close();
+if ($('#merge-close')) $('#merge-close').onclick = () => $('#dlg-merge-learner').close();
+
 // Fermeture des modales au clic sur le fond (backdrop)
-['dlg-edit-rec', 'dlg-rename-learner', 'dlg-add-learner'].forEach(id => {
+['dlg-edit-rec', 'dlg-rename-learner', 'dlg-add-learner', 'dlg-merge-learner'].forEach(id => {
   const dlg = $('#' + id);
   if (dlg) {
     dlg.addEventListener('click', e => {
@@ -2870,9 +3250,10 @@ window.addEventListener('online', ()=>{
 setInterval(()=>{
   const anyModalOpen = ($('#dlg-edit-rec') && $('#dlg-edit-rec').open) ||
                        ($('#dlg-rename-learner') && $('#dlg-rename-learner').open) ||
+                       ($('#dlg-merge-learner') && $('#dlg-merge-learner').open) ||
                        ($('#dlg-add-learner') && $('#dlg-add-learner').open);
   if (anyModalOpen) return;
-  CloudSync.sync().then(()=>{
+  CloudSync.syncLearnersRegistry().then(() => CloudSync.sync()).then(()=>{
     if($('#v-rank') && !$('#v-rank').classList.contains('hidden')) renderRank();
     if($('#v-dir') && !$('#v-dir').classList.contains('hidden')) renderDir();
   }).catch(()=>{});
@@ -2884,6 +3265,7 @@ DB.init().then(async ()=>{
   goStep(1);
   await refreshKnown();
   AutoUpdateChecker.check();
+  await CloudSync.syncLearnersRegistry();
   await CloudSync.syncRecentDays(14);
   await refreshKnown();
   PhotoStorageManager.checkAndAutoClean();

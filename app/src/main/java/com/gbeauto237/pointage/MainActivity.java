@@ -419,7 +419,7 @@ public class MainActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 3;
+                return 4;
             }
         }
 
@@ -428,7 +428,7 @@ public class MainActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "2.0.1";
+                return "2.1.0";
             }
         }
     }
